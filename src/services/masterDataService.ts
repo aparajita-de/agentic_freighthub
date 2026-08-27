@@ -103,10 +103,13 @@ function loadFromStorage(): MasterCollectionsState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULT_MASTER_STATE,
-        ...parsed,
-      };
+      const res: MasterCollectionsState = { ...DEFAULT_MASTER_STATE };
+      (Object.keys(DEFAULT_MASTER_STATE) as Array<keyof MasterCollectionsState>).forEach((k) => {
+        if (Array.isArray(parsed[k])) {
+          (res as any)[k] = parsed[k];
+        }
+      });
+      return res;
     }
   } catch (err) {
     console.error('Error loading master data from localStorage:', err);

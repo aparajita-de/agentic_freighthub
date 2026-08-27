@@ -32,7 +32,8 @@ import {
   Gauge,
   Check,
   Building,
-  UserCheck
+  UserCheck,
+  Scale
 } from 'lucide-react';
 import {
   WeatherAssessment,
@@ -63,8 +64,21 @@ import { assessWeatherForRoute } from '../backend/weather/weatherService';
 import { validateCustomsCompliance, searchRegulationsRAG, signOffCustomsCheck, uploadShipmentDocument } from '../backend/customs/customsService';
 import { assessShipmentCompositeRisk } from '../backend/risk/riskEngine';
 import { predictMLPrice, compareRuleVsMLPricing } from '../backend/pricing/mlPricingService';
+import { CustomsDashboardWorkspace } from './CustomsDashboardWorkspace';
+import { RegulationsLibraryWorkspace } from './RegulationsLibraryWorkspace';
+import { RiskWeatherDashboardWorkspace } from './RiskWeatherDashboardWorkspace';
+import { MLPricingComparisonPanel } from './MLPricingComparisonPanel';
 
-export type Milestone3Tab = 'weather' | 'customs' | 'customs-officer' | 'risk-engine' | 'ml-pricing';
+export type Milestone3Tab =
+  | 'weather'
+  | 'customs'
+  | 'customs-officer'
+  | 'risk-engine'
+  | 'ml-pricing'
+  | 'customs-workspace'
+  | 'regulations-library'
+  | 'risk-weather-analytics'
+  | 'ml-benchmark-panel';
 
 interface Milestone3Props {
   initialTab?: Milestone3Tab;
@@ -80,6 +94,15 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
   onOpenQuoteBuilder,
 }) => {
   const [activeTab, setActiveTab] = useState<Milestone3Tab>(initialTab);
+
+  const isOfficerRole = userRole === 'customer-officer' || userRole === 'customs-officer' || userRole === 'admin';
+
+  // Fallback active tab if regular user is on an officer-only tab
+  useEffect(() => {
+    if (!isOfficerRole && (activeTab === 'customs-officer' || activeTab === 'customs-workspace')) {
+      setActiveTab('risk-engine');
+    }
+  }, [isOfficerRole, activeTab]);
 
   // Weather State
   const [weatherOrigin, setWeatherOrigin] = useState<string>('MAA');
@@ -160,14 +183,14 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
     setCustomsCheck(res);
     setSimCustomsScore(100 - res.readiness_score);
     // Add to compliance cases
-    setComplianceCases(prev => [res, ...prev.filter(c => c.id !== res.id)]);
+    setComplianceCases(prev => [res, ...(prev || []).filter(c => c && c.id !== res.id)]);
   };
 
   // Handle RAG Search
   const handleRagSearch = (queryStr: string) => {
     setRagQuery(queryStr);
     const results = searchRegulationsRAG(queryStr);
-    setRagResults(results);
+    setRagResults(results || []);
   };
 
   // Handle Document Upload Simulation
@@ -181,7 +204,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
     });
 
     setCustomsCheck(prev => {
-      const updatedItems = prev.checklist_items.map(item =>
+      const updatedItems = (prev.checklist_items || []).map(item =>
         item.id === checklistItemId
           ? {
               ...item,
@@ -191,12 +214,12 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
             }
           : item
       );
-      const verified = updatedItems.filter(i => i.status === 'VERIFIED').length;
+      const verified = (updatedItems || []).filter(i => i && i.status === 'VERIFIED').length;
       const readiness = Math.round((verified / Math.max(1, prev.mandatory_documents_count)) * 100);
       return {
         ...prev,
         checklist_items: updatedItems,
-        uploaded_documents_count: updatedItems.filter(i => i.document_uploaded).length,
+        uploaded_documents_count: (updatedItems || []).filter(i => i && i.document_uploaded).length,
         verified_documents_count: verified,
         readiness_score: readiness,
         status: readiness >= 100 ? ('PASS' as const) : ('NEEDS_REVIEW' as const),
@@ -360,21 +383,23 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
             <span>Customs & RAG Regulations</span>
           </button>
 
-          <button
-            id="tab-customs-officer"
-            onClick={() => setActiveTab('customs-officer')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === 'customs-officer'
-                ? 'bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/30 font-black'
-                : 'bg-amber-950/40 text-amber-300 border border-amber-800/50 hover:bg-amber-900/40'
-            }`}
-          >
-            <UserCheck className="w-4 h-4 text-amber-400" />
-            <span>Customer Officer Workspace</span>
-            <span className="px-1.5 py-0.5 bg-amber-400/20 text-amber-300 rounded-full text-[10px]">
-              {complianceCases.filter(c => c.status === 'NEEDS_REVIEW' || c.status === 'NEEDS_DOCUMENTS').length} Pending
-            </span>
-          </button>
+          {isOfficerRole && (
+            <button
+              id="tab-customs-officer"
+              onClick={() => setActiveTab('customs-officer')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === 'customs-officer'
+                  ? 'bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/30 font-black'
+                  : 'bg-amber-950/40 text-amber-300 border border-amber-800/50 hover:bg-amber-900/40'
+              }`}
+            >
+              <UserCheck className="w-4 h-4 text-amber-400" />
+              <span>Customer Officer Workspace</span>
+              <span className="px-1.5 py-0.5 bg-amber-400/20 text-amber-300 rounded-full text-[10px]">
+                {(complianceCases || []).filter(c => c && (c.status === 'NEEDS_REVIEW' || c.status === 'NEEDS_DOCUMENTS')).length} Pending
+              </span>
+            </button>
+          )}
 
           <button
             id="tab-ml-pricing"
@@ -386,7 +411,62 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
             }`}
           >
             <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span>ML Pricing & Models (MAE/R²)</span>
+            <span>ML Pricing & Models</span>
+          </button>
+
+          {/* Phase 5 Additive Workspaces */}
+          {isOfficerRole && (
+            <button
+              id="tab-customs-workspace"
+              onClick={() => setActiveTab('customs-workspace')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === 'customs-workspace'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 font-black'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <FileCheck2 className="w-4 h-4 text-indigo-400" />
+              <span>Customs Workspace (/customs/dashboard)</span>
+            </button>
+          )}
+
+          <button
+            id="tab-regulations-library"
+            onClick={() => setActiveTab('regulations-library')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'regulations-library'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30 font-black'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 text-purple-400" />
+            <span>Regulation Library (/customs/regulations)</span>
+          </button>
+
+          <button
+            id="tab-risk-weather-analytics"
+            onClick={() => setActiveTab('risk-weather-analytics')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'risk-weather-analytics'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/30 font-black'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <span>Risk & Weather (/analytics/risk)</span>
+          </button>
+
+          <button
+            id="tab-ml-benchmark-panel"
+            onClick={() => setActiveTab('ml-benchmark-panel')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'ml-benchmark-panel'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 font-black'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Scale className="w-4 h-4 text-emerald-400" />
+            <span>ML vs. Rule Benchmark Panel</span>
           </button>
         </div>
       </div>
@@ -620,16 +700,16 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                 {/* Active Alerts */}
                 <div>
                   <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Active System Risk Alerts ({riskAssessment.alerts.length})
+                    Active System Risk Alerts ({(riskAssessment?.alerts || []).length})
                   </div>
-                  {riskAssessment.alerts.length === 0 ? (
+                  {(riskAssessment?.alerts || []).length === 0 ? (
                     <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Zero blocking risk alerts. Route, weather, and compliance thresholds cleared.</span>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {riskAssessment.alerts.map(alert => (
+                      {(riskAssessment?.alerts || []).map(alert => (
                         <div
                           key={alert.id}
                           className={`p-3 rounded-xl border text-xs flex items-start gap-3 ${
@@ -684,7 +764,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {riskAssessment.factors.map(factor => (
+                  {(riskAssessment?.factors || []).map(factor => (
                     <tr key={factor.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-2 font-bold text-slate-900">{factor.factor_type}</td>
                       <td className="py-3 px-2 text-slate-800">{factor.factor_name}</td>
@@ -792,7 +872,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                 </div>
                 <div className="text-xl font-black text-slate-900">{weatherData.wave_risk}/100</div>
                 <div className="text-[10px] font-bold text-slate-500 mt-0.5">
-                  Peak: {Math.max(...weatherData.sampled_observations.map(o => o.wave_height))}m swell
+                  Peak: {(weatherData?.sampled_observations || []).length > 0 ? Math.max(...(weatherData.sampled_observations || []).map(o => o.wave_height)) : 0}m swell
                 </div>
               </div>
 
@@ -803,7 +883,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                 </div>
                 <div className="text-xl font-black text-slate-900">{weatherData.wind_risk}/100</div>
                 <div className="text-[10px] font-bold text-slate-500 mt-0.5">
-                  Max: {Math.max(...weatherData.sampled_observations.map(o => o.wind_speed))} knots
+                  Max: {(weatherData?.sampled_observations || []).length > 0 ? Math.max(...(weatherData.sampled_observations || []).map(o => o.wind_speed)) : 0} knots
                 </div>
               </div>
 
@@ -814,7 +894,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                 </div>
                 <div className="text-xl font-black text-slate-900">{weatherData.storm_risk}/100</div>
                 <div className="text-[10px] font-bold text-slate-500 mt-0.5">
-                  {weatherData.sampled_observations.some(o => o.storm_detected) ? 'Storm Detected' : 'No Storm Pattern'}
+                  {(weatherData?.sampled_observations || []).some(o => o.storm_detected) ? 'Storm Detected' : 'No Storm Pattern'}
                 </div>
               </div>
 
@@ -868,12 +948,12 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                 <p className="text-xs text-slate-500">Live coordinates, barometric pressure, wave height, and wind vectors</p>
               </div>
               <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold font-mono">
-                {weatherData.sampled_observations.length} Waypoints Sampled
+                {(weatherData?.sampled_observations || []).length} Waypoints Sampled
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {weatherData.sampled_observations.map((obs, idx) => (
+              {(weatherData?.sampled_observations || []).map((obs, idx) => (
                 <div
                   key={obs.id}
                   className={`p-4 rounded-2xl border transition-all ${
@@ -1051,7 +1131,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
 
                 {/* Checklist items */}
                 <div className="space-y-2">
-                  {customsCheck.checklist_items.map(item => (
+                  {(customsCheck?.checklist_items || []).map(item => (
                     <div
                       key={item.id}
                       className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
@@ -1207,8 +1287,8 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
 
               {/* Cases List */}
               <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
-                {complianceCases
-                  .filter(c => caseFilterStatus === 'ALL' || c.status === caseFilterStatus)
+                {(complianceCases || [])
+                  .filter(c => c && (caseFilterStatus === 'ALL' || c.status === caseFilterStatus))
                   .map(c => (
                     <div
                       key={c.id}
@@ -1288,7 +1368,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                   Document Requirements Checklist & Evidence:
                 </h4>
                 <div className="space-y-2">
-                  {selectedCase.checklist_items.map(item => (
+                  {(selectedCase?.checklist_items || []).map(item => (
                     <div
                       key={item.id}
                       className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
@@ -1328,13 +1408,13 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
               </div>
 
               {/* Legal Citations & Findings */}
-              {selectedCase.regulation_citations.length > 0 && (
+              {(selectedCase?.regulation_citations || []).length > 0 && (
                 <div className="p-4 bg-purple-50/60 border border-purple-200 rounded-2xl text-xs space-y-1.5">
                   <div className="font-bold text-purple-900 flex items-center gap-1.5">
                     <BookOpen className="w-4 h-4 text-purple-600" />
                     <span>Applicable Regulatory Authority Findings:</span>
                   </div>
-                  {selectedCase.regulation_citations.map((cite, i) => (
+                  {(selectedCase?.regulation_citations || []).map((cite, i) => (
                     <div key={i} className="text-slate-700 text-[11px]">
                       <span className="font-bold">{cite.citation}: </span>
                       <span>{cite.snippet}</span>
@@ -1578,7 +1658,7 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                         STATIC RULE-BASED PRICE
                       </span>
                       <div className="text-2xl font-black text-slate-900 font-mono">
-                        ₹{mlComparison.rule_price_inr.toLocaleString()}
+                        ₹{(mlComparison.rule_price_inr ?? 0).toLocaleString()}
                       </div>
                       <div className="text-[11px] text-slate-500 mt-1">Tariff Table & Incoterm Formulas</div>
                     </div>
@@ -1589,10 +1669,10 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                         ML PREDICTED PRICE (XGB)
                       </span>
                       <div className="text-2xl font-black text-blue-700 font-mono">
-                        ₹{mlComparison.ml_predicted_price_inr.toLocaleString()}
+                        ₹{(mlComparison.ml_predicted_price_inr ?? 0).toLocaleString()}
                       </div>
                       <div className="text-[11px] text-blue-600 mt-1">
-                        95% CI: ₹{mlComparison.ml_confidence_interval.lower_bound_inr.toLocaleString()} – ₹{mlComparison.ml_confidence_interval.upper_bound_inr.toLocaleString()}
+                        95% CI: ₹{(mlComparison.ml_confidence_interval?.lower_bound_inr ?? 0).toLocaleString()} – ₹{(mlComparison.ml_confidence_interval?.upper_bound_inr ?? 0).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -1603,10 +1683,10 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
                       <span className="text-slate-500 font-medium">Variance Differential:</span>
                       <span
                         className={`font-mono font-bold ${
-                          mlComparison.variance_inr >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                          (mlComparison.variance_inr ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'
                         }`}
                       >
-                        {mlComparison.variance_inr >= 0 ? '+' : ''}₹{mlComparison.variance_inr.toLocaleString()} ({mlComparison.variance_pct > 0 ? '+' : ''}{mlComparison.variance_pct}%)
+                        {(mlComparison.variance_inr ?? 0) >= 0 ? '+' : ''}₹{(mlComparison.variance_inr ?? 0).toLocaleString()} ({(mlComparison.variance_pct ?? 0) > 0 ? '+' : ''}{mlComparison.variance_pct ?? 0}%)
                       </span>
                     </div>
                     <p className="text-xs text-slate-700 pt-1 leading-relaxed">
@@ -1633,6 +1713,50 @@ export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* TAB 6: PHASE 5 CUSTOMS WORKSPACE (/customs/dashboard)                      */}
+      {/* ========================================================================= */}
+      {activeTab === 'customs-workspace' && (
+        <div id="m3-phase5-customs-workspace" className="space-y-6">
+          <CustomsDashboardWorkspace
+            userRole={userRole}
+            userEmail={userEmail}
+            onNavigateToRegulations={() => setActiveTab('regulations-library')}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 7: PHASE 5 REGULATION LIBRARY (/customs/regulations)                   */}
+      {/* ========================================================================= */}
+      {activeTab === 'regulations-library' && (
+        <div id="m3-phase5-regulations-library" className="space-y-6">
+          <RegulationsLibraryWorkspace
+            onBackToCustoms={() => setActiveTab('customs-workspace')}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 8: PHASE 5 RISK & WEATHER DASHBOARD (/analytics/risk)                  */}
+      {/* ========================================================================= */}
+      {activeTab === 'risk-weather-analytics' && (
+        <div id="m3-phase5-risk-weather-analytics" className="space-y-6">
+          <RiskWeatherDashboardWorkspace />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 9: PHASE 5 ML VS. RULE COMPARISON BENCHMARK PANEL                      */}
+      {/* ========================================================================= */}
+      {activeTab === 'ml-benchmark-panel' && (
+        <div id="m3-phase5-ml-benchmark-panel" className="space-y-6">
+          <MLPricingComparisonPanel
+            ruleBasedPriceInr={mlRulePrice}
+            readOnly={false}
+          />
         </div>
       )}
     </div>

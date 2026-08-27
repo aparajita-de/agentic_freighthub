@@ -1,4 +1,29 @@
-import { PortHub, PickupDeliveryPoint, PromoCoupon, CorridorBenchmark, SavedQuotation, ContainerTrackingRecord } from '../types';
+import { PortHub, PickupDeliveryPoint, PromoCoupon, CorridorBenchmark, SavedQuotation, ContainerTrackingRecord, Incoterm } from '../types';
+
+export interface IncotermDefinition {
+  code: Incoterm;
+  name: string;
+  category: string;
+}
+
+export const INCOTERMS: IncotermDefinition[] = [
+  { code: 'FOB', name: 'Free on Board', category: 'Port Departure' },
+  { code: 'CIF', name: 'Cost, Insurance and Freight', category: 'Port Arrival' },
+  { code: 'EXW', name: 'Ex Works', category: 'Factory Pickup' },
+  { code: 'DDP', name: 'Delivered Duty Paid', category: 'Door-to-Door' },
+  { code: 'CFR', name: 'Cost and Freight', category: 'Port Arrival' },
+];
+
+export const CARGO_TYPES = [
+  'General Dry Goods',
+  'Consumer Electronics & IT',
+  'Apparel & Textiles',
+  'Automotive & Engineering Spares',
+  'Pharmaceuticals & Medical Devices',
+  'Agricultural & Perishables',
+  'Hazardous Chemicals (Class 3)',
+  'Heavy Machinery & Capital Goods'
+];
 
 export const PORTS_AND_HUBS: PortHub[] = [
   {

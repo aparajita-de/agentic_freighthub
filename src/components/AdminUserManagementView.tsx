@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   UserCheck,
@@ -353,34 +353,45 @@ export const AdminUserManagementView: React.FC = () => {
   };
 
   // Filtered Users
-  const filteredUsers = users.filter((u) => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      u.fullName.toLowerCase().includes(term) ||
-      u.email.toLowerCase().includes(term) ||
-      u.username.toLowerCase().includes(term) ||
-      (u.companyName && u.companyName.toLowerCase().includes(term)) ||
-      (u.notes && u.notes.toLowerCase().includes(term));
+  const filteredUsers = useMemo(() => {
+    const term = (searchTerm || '').toLowerCase().trim();
+    // Ensure distinct users by ID
+    const uniqueMap = new Map<string, UserAccount>();
+    users.forEach((u) => {
+      if (u && u.id) {
+        uniqueMap.set(u.id, u);
+      }
+    });
 
-    const matchesRole =
-      roleFilter === 'all' ||
-      u.role === roleFilter ||
-      (roleFilter === 'shipper' && u.role === 'user') ||
-      (roleFilter === 'business' && u.role === 'broker') ||
-      (roleFilter === 'customer-officer' && u.role === 'customs-officer');
+    return Array.from(uniqueMap.values()).filter((u) => {
+      const matchesSearch =
+        !term ||
+        (u.fullName || '').toLowerCase().includes(term) ||
+        (u.email || '').toLowerCase().includes(term) ||
+        (u.username || '').toLowerCase().includes(term) ||
+        (u.companyName || '').toLowerCase().includes(term) ||
+        (u.notes || '').toLowerCase().includes(term);
 
-    const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+      const matchesRole =
+        roleFilter === 'all' ||
+        u.role === roleFilter ||
+        (roleFilter === 'shipper' && u.role === 'user') ||
+        (roleFilter === 'business' && u.role === 'broker') ||
+        (roleFilter === 'customer-officer' && u.role === 'customs-officer');
 
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+      const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
 
-  const totalCount = users.length;
-  const shipperCount = users.filter((u) => u.role === 'shipper' || u.role === 'user').length;
-  const officerCount = users.filter((u) => u.role === 'customer-officer' || u.role === 'customs-officer').length;
-  const businessCount = users.filter((u) => u.role === 'business' || u.role === 'broker').length;
-  const agentCount = users.filter((u) => u.role === 'freight-agent').length;
-  const adminCount = users.filter((u) => u.role === 'admin').length;
-  const activeCount = users.filter((u) => u.status === 'active').length;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, roleFilter, statusFilter]);
+
+  const totalCount = (users || []).length;
+  const shipperCount = (users || []).filter((u) => u && (u.role === 'shipper' || u.role === 'user')).length;
+  const officerCount = (users || []).filter((u) => u && (u.role === 'customer-officer' || u.role === 'customs-officer')).length;
+  const businessCount = (users || []).filter((u) => u && (u.role === 'business' || u.role === 'broker')).length;
+  const agentCount = (users || []).filter((u) => u && u.role === 'freight-agent').length;
+  const adminCount = (users || []).filter((u) => u && u.role === 'admin').length;
+  const activeCount = (users || []).filter((u) => u && u.status === 'active').length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

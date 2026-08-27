@@ -413,23 +413,28 @@ export const AdminSetupMasterConsole: React.FC<AdminSetupMasterConsoleProps> = (
 
   // Filtered lists
   const filteredCustomers = useMemo(() => {
-    return customers.filter(c => !searchQuery || JSON.stringify(c).toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (customers || []).filter(c => !q || JSON.stringify(c || {}).toLowerCase().includes(q));
   }, [customers, searchQuery]);
 
   const filteredPorts = useMemo(() => {
-    return ports.filter(p => !searchQuery || JSON.stringify(p).toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (ports || []).filter(p => !q || JSON.stringify(p || {}).toLowerCase().includes(q));
   }, [ports, searchQuery]);
 
   const filteredCarriers = useMemo(() => {
-    return carriers.filter(c => !searchQuery || JSON.stringify(c).toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (carriers || []).filter(c => !q || JSON.stringify(c || {}).toLowerCase().includes(q));
   }, [carriers, searchQuery]);
 
   const filteredCargoTypes = useMemo(() => {
-    return cargoTypes.filter(cg => !searchQuery || JSON.stringify(cg).toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (cargoTypes || []).filter(cg => !q || JSON.stringify(cg || {}).toLowerCase().includes(q));
   }, [cargoTypes, searchQuery]);
 
   const filteredRoutes = useMemo(() => {
-    return tradeLanes.filter(t => !searchQuery || JSON.stringify(t).toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (tradeLanes || []).filter(t => !q || JSON.stringify(t || {}).toLowerCase().includes(q));
   }, [tradeLanes, searchQuery]);
 
   return (

@@ -9,14 +9,16 @@ import {
   Percent,
   CheckCircle2,
   Users,
-  Award
+  Award,
+  ShieldAlert
 } from 'lucide-react';
 
 export type BusinessTab =
   | 'overview'
   | 'margin-calculator'
-  | 'client-quotes'
   | 'commercial-pricing'
+  | 'risk-customs'
+  | 'client-quotes'
   | 'commission-ledger';
 
 interface BusinessSidebarNavProps {
@@ -59,6 +61,14 @@ export const BusinessSidebarNav: React.FC<BusinessSidebarNavProps> = ({
       label: 'Commercial Pricing Desk',
       subLabel: 'Multi-corridor markup governance',
       icon: Percent,
+    },
+    {
+      id: 'risk-customs',
+      label: 'Risk & Customs Intelligence',
+      subLabel: '5-pillar risk, customs tariffs & weather',
+      icon: ShieldAlert,
+      badge: '5-Pillar',
+      badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-black',
     },
     {
       id: 'client-quotes',

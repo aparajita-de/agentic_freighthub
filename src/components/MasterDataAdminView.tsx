@@ -43,7 +43,7 @@ export const MasterDataAdminView: React.FC = () => {
       icon: Shield,
       collections: [
         { id: 'customers', name: 'customers', count: collectionData.customers?.length || 0, desc: 'Customer Master (ABC Logistics, XYZ, etc.)' },
-        { id: 'customerTiers', name: 'customerTiers', count: collectionData.customerTiers.length, desc: 'Standard, Silver, Gold, Enterprise' },
+        { id: 'customerTiers', name: 'customerTiers', count: collectionData.customerTiers?.length || 0, desc: 'Standard, Silver, Gold, Enterprise' },
       ],
     },
     {
@@ -51,9 +51,9 @@ export const MasterDataAdminView: React.FC = () => {
       name: 'Geography & Network',
       icon: Globe,
       collections: [
-        { id: 'ports', name: 'ports', count: collectionData.ports.length, desc: 'UN/LOCODE seaports (Chennai, Singapore, Dubai, Colombo, Rotterdam)' },
-        { id: 'tradeLanes', name: 'tradeLanes', count: collectionData.tradeLanes.length, desc: 'Shipping & Route Data (Transit times, distances)' },
-        { id: 'countries', name: 'countries', count: collectionData.countries.length, desc: 'ISO 3166-1 alpha-2 country codes' },
+        { id: 'ports', name: 'ports', count: collectionData.ports?.length || 0, desc: 'UN/LOCODE seaports (Chennai, Singapore, Dubai, Colombo, Rotterdam)' },
+        { id: 'tradeLanes', name: 'tradeLanes', count: collectionData.tradeLanes?.length || 0, desc: 'Shipping & Route Data (Transit times, distances)' },
+        { id: 'countries', name: 'countries', count: collectionData.countries?.length || 0, desc: 'ISO 3166-1 alpha-2 country codes' },
       ],
     },
     {
@@ -61,9 +61,9 @@ export const MasterDataAdminView: React.FC = () => {
       name: 'Carriers & Containers',
       icon: Truck,
       collections: [
-        { id: 'carriers', name: 'carriers', count: collectionData.carriers.length, desc: 'Carrier Master (ABC Shipping, XYZ Shipping, Maersk, MSC)' },
-        { id: 'containerTypes', name: 'containerTypes', count: collectionData.containerTypes.length, desc: 'Container Type Master (20FT, 40FT, 40HC, 45HC)' },
-        { id: 'serviceTypes', name: 'serviceTypes', count: collectionData.serviceTypes.length, desc: 'FCL, LCL, Air Gen, Express' },
+        { id: 'carriers', name: 'carriers', count: collectionData.carriers?.length || 0, desc: 'Carrier Master (ABC Shipping, XYZ Shipping, Maersk, MSC)' },
+        { id: 'containerTypes', name: 'containerTypes', count: collectionData.containerTypes?.length || 0, desc: 'Container Type Master (20FT, 40FT, 40HC, 45HC)' },
+        { id: 'serviceTypes', name: 'serviceTypes', count: collectionData.serviceTypes?.length || 0, desc: 'FCL, LCL, Air Gen, Express' },
       ],
     },
     {
@@ -71,10 +71,10 @@ export const MasterDataAdminView: React.FC = () => {
       name: 'Cargo & Commodities',
       icon: Box,
       collections: [
-        { id: 'cargoTypes', name: 'cargoTypes', count: collectionData.cargoTypes.length, desc: 'Cargo Type Master (Electronics, Dry Bulk, General, Reefer)' },
-        { id: 'commodities', name: 'commodities', count: collectionData.commodities.length, desc: 'HS Code classification master' },
-        { id: 'packagingTypes', name: 'packagingTypes', count: collectionData.packagingTypes.length, desc: 'Euro Pallet, Crates, Drums' },
-        { id: 'documentTypes', name: 'documentTypes', count: collectionData.documentTypes.length, desc: 'Commercial Invoice, BL, AWB, MSDS' },
+        { id: 'cargoTypes', name: 'cargoTypes', count: collectionData.cargoTypes?.length || 0, desc: 'Cargo Type Master (Electronics, Dry Bulk, General, Reefer)' },
+        { id: 'commodities', name: 'commodities', count: collectionData.commodities?.length || 0, desc: 'HS Code classification master' },
+        { id: 'packagingTypes', name: 'packagingTypes', count: collectionData.packagingTypes?.length || 0, desc: 'Euro Pallet, Crates, Drums' },
+        { id: 'documentTypes', name: 'documentTypes', count: collectionData.documentTypes?.length || 0, desc: 'Commercial Invoice, BL, AWB, MSDS' },
       ],
     },
     {
@@ -82,14 +82,14 @@ export const MasterDataAdminView: React.FC = () => {
       name: 'Rates, Tariffs & Margins',
       icon: DollarSign,
       collections: [
-        { id: 'rateCards', name: 'rateCards', count: collectionData.rateCards.length, desc: 'Freight Rates (Base rate cards master)' },
-        { id: 'marginRules', name: 'marginRules', count: collectionData.marginRules.length, desc: 'Margin Rules (Floors by customer tier & mode)' },
-        { id: 'surchargeRules', name: 'surchargeRules', count: collectionData.surchargeRules.length, desc: 'Peak season, war risk, DG surcharges' },
-        { id: 'incoterms', name: 'incoterms', count: collectionData.incoterms.length, desc: 'Incoterms 2020 rules matrix' },
-        { id: 'chargeHeads', name: 'chargeHeads', count: collectionData.chargeHeads.length, desc: 'OFR, BAF, THC, DOC charge catalog' },
-        { id: 'currencies', name: 'currencies', count: collectionData.currencies.length, desc: 'USD, INR, EUR, AED, SGD' },
-        { id: 'exchangeRates', name: 'exchangeRates', count: collectionData.exchangeRates.length, desc: 'Daily FX rates master' },
-        { id: 'customsTariffs', name: 'customsTariffs', count: collectionData.customsTariffs.length, desc: 'Import duties & VAT by country' },
+        { id: 'rateCards', name: 'rateCards', count: collectionData.rateCards?.length || 0, desc: 'Freight Rates (Base rate cards master)' },
+        { id: 'marginRules', name: 'marginRules', count: collectionData.marginRules?.length || 0, desc: 'Margin Rules (Floors by customer tier & mode)' },
+        { id: 'surchargeRules', name: 'surchargeRules', count: collectionData.surchargeRules?.length || 0, desc: 'Peak season, war risk, DG surcharges' },
+        { id: 'incoterms', name: 'incoterms', count: collectionData.incoterms?.length || 0, desc: 'Incoterms 2020 rules matrix' },
+        { id: 'chargeHeads', name: 'chargeHeads', count: collectionData.chargeHeads?.length || 0, desc: 'OFR, BAF, THC, DOC charge catalog' },
+        { id: 'currencies', name: 'currencies', count: collectionData.currencies?.length || 0, desc: 'USD, INR, EUR, AED, SGD' },
+        { id: 'exchangeRates', name: 'exchangeRates', count: collectionData.exchangeRates?.length || 0, desc: 'Daily FX rates master' },
+        { id: 'customsTariffs', name: 'customsTariffs', count: collectionData.customsTariffs?.length || 0, desc: 'Import duties & VAT by country' },
       ],
     },
     {
@@ -97,16 +97,16 @@ export const MasterDataAdminView: React.FC = () => {
       name: 'Governance & Audit',
       icon: Activity,
       collections: [
-        { id: 'masterDataAudit', name: 'masterDataAudit', count: collectionData.masterDataAudit.length, desc: 'Admin change logs & IP history' },
+        { id: 'masterDataAudit', name: 'masterDataAudit', count: collectionData.masterDataAudit?.length || 0, desc: 'Admin change logs & IP history' },
       ],
     },
   ];
 
   const currentRecords = collectionData[activeCollection] || [];
 
-  const filteredRecords = currentRecords.filter((rec) => {
+  const filteredRecords = (currentRecords || []).filter((rec) => {
     if (!searchQuery) return true;
-    const str = JSON.stringify(rec).toLowerCase();
+    const str = JSON.stringify(rec || {}).toLowerCase();
     return str.includes(searchQuery.toLowerCase());
   });
 

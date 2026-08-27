@@ -76,12 +76,12 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
     tradeLanes: masterTradeLanesList,
   } = useMasterData();
 
-  const activeCustomers = masterCustomersList.filter((c) => c.isActive !== false);
-  const activePorts = masterPortsList.filter((p) => p.isActive !== false);
-  const activeCargoTypes = masterCargoTypesList.filter((c) => c.isActive !== false);
-  const activeContainerTypes = masterContainerTypesList.filter((ct) => ct.isActive !== false);
-  const activeCarriers = masterCarriersList.filter((c) => c.isActive !== false);
-  const activeTradeLanes = masterTradeLanesList.filter((t) => t.isActive !== false);
+  const activeCustomers = (masterCustomersList || []).filter((c) => c && c.isActive !== false);
+  const activePorts = (masterPortsList || []).filter((p) => p && p.isActive !== false);
+  const activeCargoTypes = (masterCargoTypesList || []).filter((c) => c && c.isActive !== false);
+  const activeContainerTypes = (masterContainerTypesList || []).filter((ct) => ct && ct.isActive !== false);
+  const activeCarriers = (masterCarriersList || []).filter((c) => c && c.isActive !== false);
+  const activeTradeLanes = (masterTradeLanesList || []).filter((t) => t && t.isActive !== false);
 
   // Customer State
   const [selectedCustomer, setSelectedCustomer] = useState<string>(''); 
@@ -174,21 +174,25 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   // Filtered shipments for current view:
   // If a specific customer is explicitly selected, we can filter or show all
   const displayedShipments = useMemo(() => {
-    let list = shipments;
+    let list = shipments || [];
     if (selectedCustomer) {
-      list = list.filter((s) => s.customerId === currentCustomer.code || s.customerName.toLowerCase().includes(currentCustomer.name.toLowerCase()));
+      list = (list || []).filter(
+        (s) =>
+          s.customerId === currentCustomer.code ||
+          (s.customerName || '').toLowerCase().includes((currentCustomer.name || '').toLowerCase())
+      );
     }
     if (shipmentFilterStatus !== 'ALL') {
-      list = list.filter((s) => s.status === shipmentFilterStatus);
+      list = (list || []).filter((s) => s.status === shipmentFilterStatus);
     }
-    if (shipmentSearchTerm.trim()) {
-      const term = shipmentSearchTerm.toLowerCase();
-      list = list.filter(
+    if ((shipmentSearchTerm || '').trim()) {
+      const term = shipmentSearchTerm.toLowerCase().trim();
+      list = (list || []).filter(
         (s) =>
-          s.id.toLowerCase().includes(term) ||
-          s.originPort.toLowerCase().includes(term) ||
-          s.destinationPort.toLowerCase().includes(term) ||
-          s.cargoType.toLowerCase().includes(term) ||
+          (s.id || '').toLowerCase().includes(term) ||
+          (s.originPort || '').toLowerCase().includes(term) ||
+          (s.destinationPort || '').toLowerCase().includes(term) ||
+          (s.cargoType || '').toLowerCase().includes(term) ||
           (s.recommendedRoute?.carrierName && s.recommendedRoute.carrierName.toLowerCase().includes(term))
       );
     }
@@ -285,9 +289,9 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
     });
 
     if (quoteFilterStatus !== 'ALL') {
-      return items.filter((item) => item.status.toUpperCase() === quoteFilterStatus.toUpperCase());
+      return (items || []).filter((item) => item.status.toUpperCase() === quoteFilterStatus.toUpperCase());
     }
-    return items;
+    return items || [];
   }, [shipments, quotations, currentCustomer.name, quoteFilterStatus]);
 
   const handleClearForm = () => {
@@ -452,8 +456,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
           currency: 'INR',
           specialInstructions: `Route Agent recommended ${recommendedRoute.name} (${recommendedRoute.carrierName})`,
           fragileGoods: false,
-          hazardousMaterials: cargoType.toLowerCase().includes('chemical') || cargoType.toLowerCase().includes('haz'),
-          temperatureControlled: cargoType.toLowerCase().includes('pharma') || cargoType.toLowerCase().includes('perish'),
+          hazardousMaterials: (cargoType || '').toLowerCase().includes('chemical') || (cargoType || '').toLowerCase().includes('haz'),
+          temperatureControlled: (cargoType || '').toLowerCase().includes('pharma') || (cargoType || '').toLowerCase().includes('perish'),
           addCargoInsurance: true,
           promoCodeApplied: null,
           fullName: currentCustomer.name,
@@ -671,7 +675,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-1">
               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Routes Optimized</span>
               <div className="text-2xl font-black text-emerald-700">
-                {displayedShipments.filter((s) => s.status === 'ROUTE_READY' || s.status === 'APPROVED' || s.status === 'QUOTE_GENERATED').length}
+                {(displayedShipments || []).filter((s) => s.status === 'ROUTE_READY' || s.status === 'APPROVED' || s.status === 'QUOTE_GENERATED').length}
               </div>
               <p className="text-[11px] text-slate-500">Route Agent direct & feeder</p>
             </div>
@@ -997,11 +1001,11 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
               {/* Step 4 Candidate Routes List */}
               <div className="space-y-4">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">
-                  Step 4: Possible Generated Routes ({createdShipment.routeOptions.length})
+                  Step 4: Possible Generated Routes ({(createdShipment.routeOptions || []).length})
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {createdShipment.routeOptions.map((opt) => {
+                  {(createdShipment.routeOptions || []).map((opt) => {
                     const isSelected = selectedRouteOption?.id === opt.id;
                     return (
                       <div
@@ -1485,7 +1489,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">All Route Options</h4>
               <div className="space-y-2">
-                {viewingShipment.routeOptions.map((opt) => (
+                {(viewingShipment.routeOptions || []).map((opt) => (
                   <div
                     key={opt.id}
                     className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs"

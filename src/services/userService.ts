@@ -119,37 +119,69 @@ export const userService = {
   getUsers(): UserAccount[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      let userList: UserAccount[] = [];
+
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const userList = parsed.map((u: any) => {
+          userList = parsed.map((u: any) => {
             let normalizedRole: UserRole = u.role;
             if (u.role === 'shipper') normalizedRole = 'user';
             if (u.role === 'broker') normalizedRole = 'business';
             if (u.role === 'customs-officer') normalizedRole = 'customer-officer';
             return {
               ...u,
+              id: u.id || `USR-${String(Date.now()).slice(-6)}`,
+              fullName: u.fullName || 'User',
+              username: (u.username || '').trim().toLowerCase() || `user.${u.id || Date.now()}`,
+              email: (u.email || '').trim().toLowerCase() || `user.${u.id || Date.now()}@freighthub.in`,
               role: normalizedRole,
+              status: u.status || 'active',
             };
           });
-
-          // Ensure all seeded accounts exist
-          let updated = false;
-          INITIAL_SEEDED_USERS.forEach((seedUser) => {
-            if (!userList.some((u: UserAccount) => u.email.toLowerCase() === seedUser.email.toLowerCase() || u.username.toLowerCase() === seedUser.username.toLowerCase())) {
-              userList.push(seedUser);
-              updated = true;
-            }
-          });
-
-          if (updated) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(userList));
-          }
-          return userList;
         }
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_SEEDED_USERS));
-      return INITIAL_SEEDED_USERS;
+
+      // Merge initial seeded accounts ensuring no duplicates by ID, email, or username
+      const userMap = new Map<string, UserAccount>();
+
+      // First add initial seeded users
+      INITIAL_SEEDED_USERS.forEach((seedUser) => {
+        userMap.set(seedUser.id, {
+          ...seedUser,
+          email: (seedUser.email || '').trim().toLowerCase(),
+          username: (seedUser.username || '').trim().toLowerCase(),
+        });
+      });
+
+      // Overlay userList entries
+      userList.forEach((u) => {
+        if (!u.id) return;
+        const normalizedEmail = (u.email || '').trim().toLowerCase();
+        const normalizedUsername = (u.username || '').trim().toLowerCase();
+
+        // If an entry already exists with same seed ID or same email, update it cleanly
+        const existingById = userMap.get(u.id);
+        if (existingById) {
+          userMap.set(u.id, { ...existingById, ...u });
+        } else {
+          // Check if there is already a user with this email or username
+          const existingWithEmail = Array.from(userMap.values()).find(
+            (existing) =>
+              (existing.email && existing.email.toLowerCase() === normalizedEmail) ||
+              (existing.username && existing.username.toLowerCase() === normalizedUsername)
+          );
+          if (existingWithEmail) {
+            userMap.set(existingWithEmail.id, { ...existingWithEmail, ...u, id: existingWithEmail.id });
+          } else {
+            userMap.set(u.id, u);
+          }
+        }
+      });
+
+      const finalUsers = Array.from(userMap.values());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalUsers));
+      return finalUsers;
     } catch {
       return INITIAL_SEEDED_USERS;
     }
@@ -157,7 +189,15 @@ export const userService = {
 
   saveUsers(users: UserAccount[]): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+      // Deduplicate by ID before saving
+      const map = new Map<string, UserAccount>();
+      users.forEach((u) => {
+        if (u && u.id) {
+          map.set(u.id, u);
+        }
+      });
+      const uniqueUsers = Array.from(map.values());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueUsers));
     } catch (e) {
       console.error('Failed to save users to localStorage', e);
     }
@@ -166,8 +206,8 @@ export const userService = {
   addUser(user: Omit<UserAccount, 'id' | 'createdAt'>): { success: boolean; user?: UserAccount; error?: string } {
     const users = this.getUsers();
 
-    const cleanEmail = user.email.trim().toLowerCase();
-    const cleanUsername = user.username.trim().toLowerCase();
+    const cleanEmail = (user.email || '').trim().toLowerCase();
+    const cleanUsername = (user.username || '').trim().toLowerCase();
 
     // Validate fixed email pattern
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
@@ -181,11 +221,13 @@ export const userService = {
 
     // Check duplicate
     const existing = users.find(
-      (u) => u.email.toLowerCase() === cleanEmail || u.username.toLowerCase() === cleanUsername
+      (u) =>
+        (u.email && u.email.toLowerCase() === cleanEmail) ||
+        (u.username && u.username.toLowerCase() === cleanUsername)
     );
 
     if (existing) {
-      if (existing.email.toLowerCase() === cleanEmail) {
+      if (existing.email && existing.email.toLowerCase() === cleanEmail) {
         return { success: false, error: `An account with email "${cleanEmail}" is already registered.` };
       }
       return { success: false, error: `The username "${cleanUsername}" is already taken. Please choose another.` };
@@ -200,7 +242,7 @@ export const userService = {
       status: user.status || 'active',
     };
 
-    const updated = [newUser, ...users];
+    const updated = [newUser, ...users.filter((u) => u.id !== newUser.id)];
     this.saveUsers(updated);
     return { success: true, user: newUser };
   },
@@ -230,8 +272,8 @@ export const userService = {
 
     // If updating email or username, check for collisions with other users
     if (updates.email) {
-      const cleanEmail = updates.email.trim().toLowerCase();
-      const duplicate = users.find((u) => u.id !== id && u.email.toLowerCase() === cleanEmail);
+      const cleanEmail = (updates.email || '').trim().toLowerCase();
+      const duplicate = users.find((u) => u.id !== id && (u.email || '').toLowerCase() === cleanEmail);
       if (duplicate) {
         return { success: false, error: `Email "${cleanEmail}" is already in use by another account.` };
       }
@@ -239,8 +281,8 @@ export const userService = {
     }
 
     if (updates.username) {
-      const cleanUsername = updates.username.trim().toLowerCase();
-      const duplicate = users.find((u) => u.id !== id && u.username.toLowerCase() === cleanUsername);
+      const cleanUsername = (updates.username || '').trim().toLowerCase();
+      const duplicate = users.find((u) => u.id !== id && (u.username || '').toLowerCase() === cleanUsername);
       if (duplicate) {
         return { success: false, error: `Username "${cleanUsername}" is already in use by another account.` };
       }
@@ -257,9 +299,9 @@ export const userService = {
   },
 
   getUserByEmailOrUsername(term: string): UserAccount | undefined {
-    const cleanTerm = term.trim().toLowerCase();
+    const cleanTerm = (term || '').trim().toLowerCase();
     return this.getUsers().find(
-      (u) => u.email.toLowerCase() === cleanTerm || u.username.toLowerCase() === cleanTerm
+      (u) => (u.email || '').toLowerCase() === cleanTerm || (u.username || '').toLowerCase() === cleanTerm
     );
   },
 
@@ -352,7 +394,7 @@ export const userService = {
 
   authenticate(emailOrUsername: string, password: string, role: UserRole): { success: boolean; user?: UserAccount; error?: string } {
     const users = this.getUsers();
-    const term = emailOrUsername.trim().toLowerCase();
+    const term = (emailOrUsername || '').trim().toLowerCase();
 
     // Map role aliases if needed (user -> shipper, broker -> business/freight-agent, customs-officer -> customer-officer)
     const matchedUser = users.find((u) => {
@@ -366,10 +408,10 @@ export const userService = {
         (role === 'customs-officer' && u.role === 'customer-officer');
 
       if (!roleMatches) return false;
-      const emailMatch = u.email.toLowerCase() === term;
-      const usernameMatch = u.username.toLowerCase() === term;
+      const emailMatch = (u.email || '').toLowerCase() === term;
+      const usernameMatch = (u.username || '').toLowerCase() === term;
       if (role === 'admin' && (term === 'admin' || term === 'admin.root' || term === 'admin@freighthub.com')) {
-        return u.email === 'admin@freighthub.com' || u.username === 'admin@freighthub.com' || u.username === 'admin.root';
+        return (u.email || '').toLowerCase() === 'admin@freighthub.com' || (u.username || '').toLowerCase() === 'admin@freighthub.com' || (u.username || '').toLowerCase() === 'admin.root';
       }
       return emailMatch || usernameMatch;
     });

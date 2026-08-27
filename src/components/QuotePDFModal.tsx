@@ -144,7 +144,7 @@ export const QuotePDFModal: React.FC<QuotePDFModalProps> = ({ quote, onClose }) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                  {formData.cargoItems.map((item, idx) => (
+                  {(formData?.cargoItems || []).map((item, idx) => (
                     <tr key={item.id}>
                       <td className="py-3 px-4 font-bold text-slate-500">0{idx + 1}</td>
                       <td className="py-3 px-4 font-bold">{item.commodityDescription || 'Freight Cargo'}</td>

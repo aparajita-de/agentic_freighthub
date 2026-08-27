@@ -80,7 +80,10 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
     try {
       const stored = localStorage.getItem(DRAFTS_STORAGE_KEY);
       if (stored) {
-        setDrafts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setDrafts(parsed);
+        }
       }
     } catch (err) {
       console.error('Failed to load drafts:', err);
@@ -98,7 +101,7 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
     const now = new Date();
     const formattedDate = `${now.toLocaleDateString()} at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
-    const totalWeight = formData.cargoItems.reduce((sum, item) => sum + (item.grossWeightKg || 0) * (item.quantity || 1), 0);
+    const totalWeight = (formData.cargoItems || []).reduce((sum, item) => sum + (item.grossWeightKg || 0) * (item.quantity || 1), 0);
 
     const newDraft: QuoteDraft = {
       id: `draft-${Date.now()}`,
@@ -111,7 +114,7 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
       estimatedTariffInr: 0,
     };
 
-    const updatedDrafts = [newDraft, ...drafts.filter((d) => d.id !== newDraft.id)];
+    const updatedDrafts = [newDraft, ...(drafts || []).filter((d) => d && d.id !== newDraft.id)];
     setDrafts(updatedDrafts);
     setJustSavedDraft(newDraft);
     setIsDraftSavedModalOpen(true);
@@ -135,7 +138,7 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
 
   const handleDeleteDraft = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = drafts.filter((d) => d.id !== id);
+    const updated = (drafts || []).filter((d) => d && d.id !== id);
     setDrafts(updated);
     try {
       localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updated));
@@ -510,7 +513,7 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
 
         {/* Line Items Array */}
         <div className="space-y-4">
-          {formData.cargoItems.map((item, index) => (
+          {(formData?.cargoItems || []).map((item, index) => (
             <div
               key={item.id}
               className="bg-slate-50/80 border border-slate-200 rounded-2xl p-5 space-y-4 relative"
@@ -883,7 +886,7 @@ export const CalculationForm: React.FC<CalculationFormProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {drafts.map((draft) => (
+                  {(drafts || []).map((draft) => (
                     <div
                       key={draft.id}
                       className="p-4 rounded-2xl border border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"

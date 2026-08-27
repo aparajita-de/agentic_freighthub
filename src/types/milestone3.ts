@@ -3,6 +3,7 @@
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type AssessmentStatus = 'COMPLETED' | 'IN_PROGRESS' | 'DEGRADED' | 'FAILED';
 export type ComplianceStatus = 'PASS' | 'FAIL' | 'NEEDS_DOCUMENTS' | 'NEEDS_REVIEW' | 'APPROVED' | 'REJECTED' | 'CONDITIONAL';
+export type SignOffAction = 'APPROVE' | 'REJECT' | 'CONDITIONAL' | 'REQUEST_DOCUMENTS';
 export type ChecklistItemStatus = 'PENDING' | 'VERIFIED' | 'MISSING' | 'REJECTED' | 'WAIVED';
 export type DocumentVerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 export type QuoteDecision = 'APPROVED' | 'NEEDS_REVIEW' | 'BLOCKED';
@@ -137,6 +138,9 @@ export interface RegulationChunk {
   page_number?: number;
   relevance_score?: number; // Retrieved RAG similarity score
   legal_citation: string;
+  citation?: string;
+  authority?: string;
+  documentId?: string;
   keywords: string[];
   effective_from: string;
   effective_to?: string;

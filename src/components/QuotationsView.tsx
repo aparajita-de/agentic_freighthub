@@ -23,11 +23,12 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const [selectedMode, setSelectedMode] = useState<'all' | 'ocean' | 'air' | 'ground'>('all');
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
 
-  const filteredQuotes = quotations.filter((quote) => {
-    const term = searchTerm.toLowerCase().trim();
+  const filteredQuotes = (quotations || []).filter((quote) => {
+    if (!quote) return false;
+    const term = (searchTerm || '').toLowerCase().trim();
     const matchesSearch =
       !term ||
-      quote.id.toLowerCase().includes(term) ||
+      (quote.id || '').toLowerCase().includes(term) ||
       (quote.companyName && quote.companyName.toLowerCase().includes(term)) ||
       (quote.shipperName && quote.shipperName.toLowerCase().includes(term)) ||
       (quote.routeSummary && quote.routeSummary.toLowerCase().includes(term)) ||

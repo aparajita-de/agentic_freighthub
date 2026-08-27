@@ -1,15 +1,17 @@
 import React from 'react';
-import { Package, Calculator, Compass, Radar, FileText, ShieldAlert } from 'lucide-react';
+import { Package, Calculator, Compass, Radar, FileText } from 'lucide-react';
 import { HelpdeskWidget } from './HelpdeskWidget';
 
+export type UserWorkspaceView = 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations';
+
 interface SidebarNavProps {
-  activeView: 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations' | 'risk-intelligence';
-  onSelectView: (view: 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations' | 'risk-intelligence') => void;
+  activeView: UserWorkspaceView;
+  onSelectView: (view: UserWorkspaceView) => void;
   quotationCount: number;
 }
 
 interface NavItem {
-  id: 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations' | 'risk-intelligence';
+  id: UserWorkspaceView;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   hasDot?: boolean;
@@ -27,7 +29,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     { id: 'routes', label: 'Routes', icon: Compass },
     { id: 'tracking', label: 'Tracking', icon: Radar },
     { id: 'quotations', label: 'Quotations', icon: FileText, badge: quotationCount },
-    { id: 'risk-intelligence', label: 'Risk & Customs', icon: ShieldAlert },
   ];
 
   return (

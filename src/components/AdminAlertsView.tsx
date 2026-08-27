@@ -101,14 +101,15 @@ export const AdminAlertsView: React.FC = () => {
     showToast(`Alert ${id} resolved and archived.`);
   };
 
-  const filteredAlerts = alerts.filter(a => {
+  const filteredAlerts = (alerts || []).filter(a => {
+    if (!a) return false;
     const matchesSeverity = severityFilter === 'ALL' || a.severity === severityFilter;
     const matchesStatus = statusFilter === 'ALL' || a.status === statusFilter;
     return matchesSeverity && matchesStatus;
   });
 
-  const activeCount = alerts.filter(a => a.status === 'ACTIVE').length;
-  const criticalCount = alerts.filter(a => a.severity === 'CRITICAL' && a.status === 'ACTIVE').length;
+  const activeCount = (alerts || []).filter(a => a && a.status === 'ACTIVE').length;
+  const criticalCount = (alerts || []).filter(a => a && a.severity === 'CRITICAL' && a.status === 'ACTIVE').length;
 
   return (
     <div className="space-y-6">

@@ -45,8 +45,10 @@ interface SanctionEntity {
   matchReason: string;
 }
 
+import { MLPricingComparisonPanel } from './MLPricingComparisonPanel';
+
 export const AdminRiskCustomsView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'hs-rules' | 'sanctions' | 'risk-matrix'>('hs-rules');
+  const [activeSubTab, setActiveSubTab] = useState<'hs-rules' | 'sanctions' | 'risk-matrix' | 'ml-benchmark'>('hs-rules');
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -225,15 +227,16 @@ export const AdminRiskCustomsView: React.FC = () => {
   };
 
   const handleDeleteRule = (id: string) => {
-    setHsRules(hsRules.filter(r => r.id !== id));
+    setHsRules((hsRules || []).filter(r => r && r.id !== id));
     showToast('HS Code classification rule removed.');
   };
 
-  const filteredHsRules = hsRules.filter(rule => {
+  const filteredHsRules = (hsRules || []).filter(rule => {
+    if (!rule) return false;
     const matchesSearch =
-      rule.hsCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rule.commodityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rule.category.toLowerCase().includes(searchQuery.toLowerCase());
+      (rule.hsCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (rule.commodityName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (rule.category || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTier = tierFilter === 'ALL' || rule.riskTier === tierFilter;
     return matchesSearch && matchesTier;
   });
@@ -316,6 +319,18 @@ export const AdminRiskCustomsView: React.FC = () => {
         >
           <Sliders className="w-4 h-4 text-amber-400" />
           <span>Inspection & Threshold Matrix</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('ml-benchmark')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'ml-benchmark'
+              ? 'bg-indigo-900 text-white shadow-sm'
+              : 'text-indigo-600 hover:bg-indigo-50 font-bold'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          <span>ML vs Rule Pricing Benchmark</span>
         </button>
       </div>
 
@@ -571,6 +586,16 @@ export const AdminRiskCustomsView: React.FC = () => {
               Save Risk Parameters
             </button>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 4: ML VS. RULE PRICING BENCHMARK */}
+      {activeSubTab === 'ml-benchmark' && (
+        <div className="space-y-4">
+          <MLPricingComparisonPanel
+            ruleBasedPriceInr={88500}
+            readOnly={false}
+          />
         </div>
       )}
 

@@ -199,7 +199,7 @@ const INITIAL_COMMISSION_LEDGER: CommissionLedgerItem[] = [
 ];
 
 export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
-  quotations,
+  quotations = [],
   onViewQuotePDF,
   onAddBrokerQuotation,
   onUpdateQuotation,
@@ -257,7 +257,7 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
   // Memoized Filtered Client Quotations for maximum performance and instant search/filtering
   const filteredQuotations = useMemo(() => {
     const term = quoteSearchTerm.trim().toLowerCase();
-    return quotations.filter((q) => {
+    return (quotations || []).filter((q) => {
       if (quoteFilterStatus === 'PENDING' && q.status !== 'PENDING_BROKER_REVIEW') {
         return false;
       }
@@ -266,7 +266,7 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
       }
       if (!term) return true;
       return (
-        q.id.toLowerCase().includes(term) ||
+        (q.id || '').toLowerCase().includes(term) ||
         (q.companyName || '').toLowerCase().includes(term) ||
         (q.shipperName || '').toLowerCase().includes(term) ||
         (q.routeSummary || '').toLowerCase().includes(term)
@@ -917,9 +917,9 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                   Managed Client Freight Quotations
                 </h2>
-                {quotations.filter((q) => q.status === 'PENDING_BROKER_REVIEW').length > 0 && (
+                {(quotations || []).filter((q) => q.status === 'PENDING_BROKER_REVIEW').length > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 animate-pulse">
-                    {quotations.filter((q) => q.status === 'PENDING_BROKER_REVIEW').length} Pending Action
+                    {(quotations || []).filter((q) => q.status === 'PENDING_BROKER_REVIEW').length} Pending Action
                   </span>
                 )}
               </div>
@@ -960,7 +960,7 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                All ({quotations.length})
+                All ({(quotations || []).length})
               </button>
               <button
                 type="button"
@@ -973,7 +973,7 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
               >
                 <span>Pending Review</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-[10px]">
-                  {quotations.filter((q) => q.status === 'PENDING_BROKER_REVIEW').length}
+                  {(quotations || []).filter((q) => q.status === 'PENDING_BROKER_REVIEW').length}
                 </span>
               </button>
               <button
@@ -985,7 +985,7 @@ export const BrokerPortalView: React.FC<BrokerPortalViewProps> = ({
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Dispatched ({quotations.filter((q) => q.status === 'BROKER_FINALIZED' || q.status === 'ISSUED').length})
+                Dispatched ({(quotations || []).filter((q) => q.status === 'BROKER_FINALIZED' || q.status === 'ISSUED').length})
               </button>
             </div>
           </div>

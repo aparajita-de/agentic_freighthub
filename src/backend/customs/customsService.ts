@@ -205,14 +205,14 @@ export function validateCustomsCompliance(params: CustomsValidateParams): Custom
  * Hybrid Semantic & Keyword RAG Search over Regulation Corpus
  */
 export function searchRegulationsRAG(query: string, country?: string, limit: number = 5): RegulationChunk[] {
-  const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  const terms = (query || '').toLowerCase().split(/\s+/).filter(t => t.length > 2);
 
-  const scoredChunks = SEEDED_REGULATION_CHUNKS.map(chunk => {
+  const scoredChunks = (SEEDED_REGULATION_CHUNKS || []).map(chunk => {
     let score = 0;
-    const contentLower = chunk.content.toLowerCase();
-    const sectionLower = chunk.section_name.toLowerCase();
-    const citationLower = chunk.legal_citation.toLowerCase();
-    const keywords = chunk.keywords.map(k => k.toLowerCase());
+    const contentLower = (chunk.content || '').toLowerCase();
+    const sectionLower = (chunk.section_name || '').toLowerCase();
+    const citationLower = (chunk.legal_citation || chunk.citation || '').toLowerCase();
+    const keywords = (chunk.keywords || []).map(k => (k || '').toLowerCase());
 
     terms.forEach(term => {
       if (keywords.some(k => k.includes(term))) score += 4;
@@ -278,6 +278,208 @@ export function signOffCustomsCheck(
   if (check.shipment_id) {
     complianceChecksStore.set(check.shipment_id, check);
   }
+
+  // Record in audit logs
+  addCustomsAuditLog({
+    caseId: checkId,
+    shipmentId: check.shipment_id || 'UNKNOWN',
+    action,
+    officerEmail: reviewerEmail,
+    officerName: reviewerEmail.split('@')[0],
+    notes: reviewerNotes,
+    readinessScore: check.readiness_score,
+  });
+
+  return check;
+}
+
+export interface CustomsAuditLogRecord {
+  id: string;
+  caseId: string;
+  shipmentId: string;
+  action: 'APPROVE' | 'REQUEST_DOCUMENTS' | 'CONDITIONAL' | 'REJECT' | 'MANUAL_EDIT' | 'ITEM_VERIFY' | 'HS_OVERRIDE';
+  officerEmail: string;
+  officerName: string;
+  timestamp: string;
+  notes: string;
+  readinessScore: number;
+  editedFields?: string[];
+}
+
+const customsAuditLogsStore: CustomsAuditLogRecord[] = [
+  {
+    id: 'LOG-8921',
+    caseId: 'CHK-2026-001',
+    shipmentId: 'SHP-1001',
+    action: 'APPROVE',
+    officerEmail: 'customer.officer@freighthub.in',
+    officerName: 'Customer Officer',
+    timestamp: '2026-08-26 14:32:10 UTC',
+    notes: 'Pre-flight ICEGATE clearance validated. All 4 mandatory commercial docs verified.',
+    readinessScore: 100,
+  },
+  {
+    id: 'LOG-8919',
+    caseId: 'CHK-2026-003',
+    shipmentId: 'SHP-1003',
+    action: 'CONDITIONAL',
+    officerEmail: 'customer.officer@freighthub.in',
+    officerName: 'Customer Officer',
+    timestamp: '2026-08-25 18:15:44 UTC',
+    notes: 'Agricultural tea shipment approved pending phytosanitary physical container seal inspection.',
+    readinessScore: 75,
+  },
+];
+
+export function addCustomsAuditLog(record: Omit<CustomsAuditLogRecord, 'id' | 'timestamp'>): CustomsAuditLogRecord {
+  const newLog: CustomsAuditLogRecord = {
+    ...record,
+    id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+    timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+  };
+  customsAuditLogsStore.unshift(newLog);
+  return newLog;
+}
+
+export function getCustomsAuditLogs(): CustomsAuditLogRecord[] {
+  return [...customsAuditLogsStore];
+}
+
+/**
+ * Customer / Customs Officer Manual Case Editing:
+ * Allows customer officer to manually edit HS code, commodity description, readiness score,
+ * duties, officer notes, or compliance status.
+ */
+export function manualEditComplianceCheck(
+  checkId: string,
+  updates: {
+    hsCodeDeclared?: string;
+    hsCodeMatched?: string;
+    commodityDescription?: string;
+    status?: ComplianceStatus;
+    riskLevel?: RiskLevel;
+    officerNotes?: string;
+    dutyOverrideBcdPct?: number;
+    dutyOverrideIgstPct?: number;
+    checklistItems?: CustomsChecklistItem[];
+  },
+  officerEmail: string
+): CustomsComplianceCheck | null {
+  const check = complianceChecksStore.get(checkId);
+  if (!check) return null;
+
+  const editedFields: string[] = [];
+
+  if (updates.hsCodeDeclared !== undefined) {
+    check.hs_code_declared = updates.hsCodeDeclared;
+    editedFields.push('hs_code_declared');
+  }
+  if (updates.hsCodeMatched !== undefined) {
+    check.hs_code_matched = updates.hsCodeMatched;
+    editedFields.push('hs_code_matched');
+  }
+  if (updates.commodityDescription !== undefined) {
+    check.commodity_description = updates.commodityDescription;
+    editedFields.push('commodity_description');
+  }
+  if (updates.status !== undefined) {
+    check.status = updates.status;
+    editedFields.push('status');
+  }
+  if (updates.riskLevel !== undefined) {
+    check.risk_level = updates.riskLevel;
+    editedFields.push('risk_level');
+  }
+  if (updates.officerNotes !== undefined) {
+    check.reviewer_notes = updates.officerNotes;
+    editedFields.push('reviewer_notes');
+  }
+  if (updates.checklistItems && Array.isArray(updates.checklistItems)) {
+    check.checklist_items = updates.checklistItems;
+    check.uploaded_documents_count = check.checklist_items.filter(c => c.document_uploaded).length;
+    check.verified_documents_count = check.checklist_items.filter(c => c.status === 'VERIFIED').length;
+    check.readiness_score = Math.round((check.verified_documents_count / Math.max(1, check.mandatory_documents_count)) * 100);
+    editedFields.push('checklist_items');
+  }
+
+  check.reviewed_by = officerEmail;
+  check.updated_at = new Date().toISOString();
+
+  complianceChecksStore.set(checkId, check);
+  if (check.shipment_id) {
+    complianceChecksStore.set(check.shipment_id, check);
+  }
+
+  addCustomsAuditLog({
+    caseId: checkId,
+    shipmentId: check.shipment_id || 'UNKNOWN',
+    action: 'MANUAL_EDIT',
+    officerEmail,
+    officerName: officerEmail.split('@')[0],
+    notes: updates.officerNotes || `Customer Officer manually updated: ${editedFields.join(', ')}`,
+    readinessScore: check.readiness_score,
+    editedFields,
+  });
+
+  return check;
+}
+
+/**
+ * Customer / Customs Officer Individual Checklist Item Verification:
+ * Allows customer officer to verify/flag individual items and add verification notes.
+ */
+export function verifySingleChecklistItem(
+  checkId: string,
+  itemId: string,
+  updates: {
+    status: 'VERIFIED' | 'PENDING' | 'DISCREPANCY' | 'WAIVED';
+    evidence?: string;
+    citation?: string;
+    officerNotes?: string;
+  },
+  officerEmail: string
+): CustomsComplianceCheck | null {
+  const check = complianceChecksStore.get(checkId);
+  if (!check) return null;
+
+  const item = check.checklist_items.find(c => c.id === itemId);
+  if (!item) return null;
+
+  item.status = updates.status;
+  if (updates.evidence) item.evidence = updates.evidence;
+  if (updates.citation) item.citation = updates.citation;
+  if (updates.status === 'VERIFIED') {
+    item.document_uploaded = true;
+  }
+  item.updated_at = new Date().toISOString();
+
+  check.uploaded_documents_count = check.checklist_items.filter(c => c.document_uploaded).length;
+  check.verified_documents_count = check.checklist_items.filter(c => c.status === 'VERIFIED').length;
+  check.readiness_score = Math.round((check.verified_documents_count / Math.max(1, check.mandatory_documents_count)) * 100);
+
+  if (check.readiness_score === 100 && check.status === 'NEEDS_REVIEW') {
+    check.status = 'APPROVED';
+  } else if (updates.status === 'DISCREPANCY') {
+    check.status = 'NEEDS_DOCUMENTS';
+    check.risk_level = 'HIGH';
+  }
+
+  check.updated_at = new Date().toISOString();
+  complianceChecksStore.set(checkId, check);
+  if (check.shipment_id) {
+    complianceChecksStore.set(check.shipment_id, check);
+  }
+
+  addCustomsAuditLog({
+    caseId: checkId,
+    shipmentId: check.shipment_id || 'UNKNOWN',
+    action: 'ITEM_VERIFY',
+    officerEmail,
+    officerName: officerEmail.split('@')[0],
+    notes: `Item [${item.item_name}] status marked as ${updates.status}. ${updates.officerNotes || ''}`,
+    readinessScore: check.readiness_score,
+  });
+
   return check;
 }
 

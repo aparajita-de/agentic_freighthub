@@ -235,22 +235,23 @@ export const TrackingView: React.FC<TrackingViewProps> = ({
 
   // Filtered shipments based on search (quotation number, shipment ID, customer, etc.)
   const filteredShipments = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return UNIFIED_TRACKING_RECORDS.filter((s) => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (UNIFIED_TRACKING_RECORDS || []).filter((s) => {
+      if (!s) return false;
       // Status filter
       if (selectedStatusFilter !== 'ALL' && s.status !== selectedStatusFilter) {
         return false;
       }
       if (!q) return true;
       return (
-        s.quotationId.toLowerCase().includes(q) ||
-        s.shipmentId.toLowerCase().includes(q) ||
-        s.customerName.toLowerCase().includes(q) ||
-        s.originPort.toLowerCase().includes(q) ||
-        s.destinationPort.toLowerCase().includes(q) ||
-        s.carrierName.toLowerCase().includes(q) ||
-        s.vesselName.toLowerCase().includes(q) ||
-        s.voyageNumber.toLowerCase().includes(q)
+        (s.quotationId || '').toLowerCase().includes(q) ||
+        (s.shipmentId || '').toLowerCase().includes(q) ||
+        (s.customerName || '').toLowerCase().includes(q) ||
+        (s.originPort || '').toLowerCase().includes(q) ||
+        (s.destinationPort || '').toLowerCase().includes(q) ||
+        (s.carrierName || '').toLowerCase().includes(q) ||
+        (s.vesselName || '').toLowerCase().includes(q) ||
+        (s.voyageNumber || '').toLowerCase().includes(q)
       );
     });
   }, [searchQuery, selectedStatusFilter]);
@@ -317,7 +318,7 @@ export const TrackingView: React.FC<TrackingViewProps> = ({
               <span className="text-[11px] font-black text-slate-400 uppercase mr-1 flex items-center gap-1">
                 <Tag className="w-3 h-3 text-cyan-400" /> Quotation Numbers:
               </span>
-              {popularQuotations.map((quoteCode) => (
+              {(popularQuotations || []).map((quoteCode) => (
                 <button
                   key={quoteCode}
                   onClick={() => setSearchQuery(quoteCode)}
@@ -396,7 +397,7 @@ export const TrackingView: React.FC<TrackingViewProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredShipments.map((shipment) => (
+            {(filteredShipments || []).map((shipment) => (
               <div
                 key={shipment.shipmentId}
                 className="bg-slate-50/70 hover:bg-slate-50 border border-slate-200/80 hover:border-blue-300 rounded-3xl p-5 sm:p-6 transition-all shadow-xs hover:shadow-md space-y-4"

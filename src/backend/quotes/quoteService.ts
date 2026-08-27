@@ -142,7 +142,7 @@ export function getCustomerQuoteProjection(quoteId: string): CustomerQuoteProjec
     sellPrice: latest.breakdown.sellPriceString,
     currency: 'INR',
     chargeBasisLabel: `${latest.incoterm} Freight Services`,
-    items: latest.breakdown.components.map((c) => ({
+    items: (latest.breakdown.components || []).map((c) => ({
       code: c.code,
       name: c.name,
       description: c.description,

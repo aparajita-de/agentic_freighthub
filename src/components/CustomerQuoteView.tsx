@@ -297,7 +297,7 @@ export const CustomerQuoteView: React.FC<CustomerQuoteViewProps> = ({
             Services & Surcharges Included
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            {projection.items.map((item, idx) => (
+            {(projection?.items || []).map((item, idx) => (
               <div key={idx} className="p-3 bg-slate-950 rounded-xl border border-slate-800/80 flex items-center gap-2 text-slate-300 font-medium">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{item.name}</span>

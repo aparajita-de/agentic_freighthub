@@ -81,7 +81,7 @@ export default function App() {
 
   // Navigation State
   const [activePublicTab, setActivePublicTab] = useState<string>('workspace');
-  const [workspaceView, setWorkspaceView] = useState<'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations' | 'risk-intelligence'>('calculation');
+  const [workspaceView, setWorkspaceView] = useState<'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations'>('calculation');
   const [adminSubTab, setAdminSubTab] = useState<AdminTab>('home');
   const [brokerSubTab, setBrokerSubTab] = useState<'overview' | 'margin-calculator' | 'client-quotes' | 'carrier-rates' | 'commissions' | 'm1-routes' | 'm2-quotes'>('overview');
   const [businessSubTab, setBusinessSubTab] = useState<BusinessTab>('margin-calculator');
@@ -174,7 +174,7 @@ export default function App() {
   const handleRemoveCargoItem = (id: string) => {
     setFormData((prev) => ({
       ...prev,
-      cargoItems: prev.cargoItems.filter((i) => i.id !== id),
+      cargoItems: (prev.cargoItems || []).filter((i) => i && i.id !== id),
     }));
     setIsEstimateCalculated(false);
   };
@@ -182,7 +182,7 @@ export default function App() {
   const handleUpdateCargoItem = (id: string, updates: Partial<CargoLineItem>) => {
     setFormData((prev) => ({
       ...prev,
-      cargoItems: prev.cargoItems.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+      cargoItems: (prev.cargoItems || []).map((i) => (i && i.id === id ? { ...i, ...updates } : i)),
     }));
     setIsEstimateCalculated(false);
   };
@@ -195,7 +195,7 @@ export default function App() {
       const draftTitle = `${origin} → ${dest} (${formData.transportMode.toUpperCase()})`;
       const now = new Date();
       const formattedDate = `${now.toLocaleDateString()} at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      const totalWeight = formData.cargoItems.reduce((sum, item) => sum + (item.grossWeightKg || 0) * (item.quantity || 1), 0);
+      const totalWeight = (formData.cargoItems || []).reduce((sum, item) => sum + (item?.grossWeightKg || 0) * (item?.quantity || 1), 0);
 
       const newDraft = {
         id: `draft-${Date.now()}`,
@@ -210,7 +210,7 @@ export default function App() {
 
       const existingRaw = localStorage.getItem('freighthub_saved_drafts_v1');
       const existing = existingRaw ? JSON.parse(existingRaw) : [];
-      const updated = [newDraft, ...existing.filter((d: any) => d.id !== newDraft.id)];
+      const updated = [newDraft, ...(Array.isArray(existing) ? existing : []).filter((d: any) => d && d.id !== newDraft.id)];
       localStorage.setItem('freighthub_saved_drafts_v1', JSON.stringify(updated));
     } catch (err) {
       console.error('Error saving draft from modal:', err);
@@ -557,16 +557,6 @@ export default function App() {
                         onViewQuotePDF={(q) => setSelectedQuoteForPDF(q)}
                         onCreateNewQuote={handleGenerateNewQuote}
                         onUpdateQuotation={handleUpdateQuotation}
-                      />
-                    )}
-
-                    {/* RISK & CUSTOMS INTELLIGENCE (MILESTONE 3) */}
-                    {workspaceView === 'risk-intelligence' && (
-                      <Milestone3RiskIntelligenceWorkspace
-                        initialTab="risk-engine"
-                        userRole={userRole}
-                        userEmail={userEmail}
-                        onOpenQuoteBuilder={handleGenerateNewQuote}
                       />
                     )}
                   </div>

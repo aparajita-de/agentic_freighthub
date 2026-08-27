@@ -181,17 +181,18 @@ export const Milestone2BrokerQuotationView: React.FC = () => {
   const avgQuote = '$1,520';
   const avgMargin = '15%';
 
-  const filteredQuotes = quotes.filter((q) => {
+  const filteredQuotes = (quotes || []).filter((q) => {
+    if (!q) return false;
     if (statusFilter !== 'ALL' && q.status !== statusFilter) return false;
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
     return (
-      q.quoteId.toLowerCase().includes(term) ||
-      q.shipmentId.toLowerCase().includes(term) ||
-      q.customerName.toLowerCase().includes(term) ||
-      q.originPort.toLowerCase().includes(term) ||
-      q.destinationPort.toLowerCase().includes(term) ||
-      q.carrierName.toLowerCase().includes(term)
+      (q.quoteId || '').toLowerCase().includes(term) ||
+      (q.shipmentId || '').toLowerCase().includes(term) ||
+      (q.customerName || '').toLowerCase().includes(term) ||
+      (q.originPort || '').toLowerCase().includes(term) ||
+      (q.destinationPort || '').toLowerCase().includes(term) ||
+      (q.carrierName || '').toLowerCase().includes(term)
     );
   });
 

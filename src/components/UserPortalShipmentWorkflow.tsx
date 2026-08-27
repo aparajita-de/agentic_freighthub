@@ -244,13 +244,14 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
 
   // Filter matched HS codes
   const matchedHsCodes = useMemo(() => {
-    if (!hsSearchTerm.trim()) return SEEDED_HS_CODES.slice(0, 5);
-    const term = hsSearchTerm.toLowerCase();
-    return SEEDED_HS_CODES.filter(
+    const term = (hsSearchTerm || '').toLowerCase().trim();
+    if (!term) return (SEEDED_HS_CODES || []).slice(0, 5);
+    return (SEEDED_HS_CODES || []).filter(
       (h) =>
-        h.hs_code.toLowerCase().includes(term) ||
-        h.description.toLowerCase().includes(term) ||
-        h.commodity_type.toLowerCase().includes(term)
+        h &&
+        ((h.hs_code || '').toLowerCase().includes(term) ||
+          (h.description || '').toLowerCase().includes(term) ||
+          (h.commodity_type || '').toLowerCase().includes(term))
     );
   }, [hsSearchTerm]);
 
@@ -258,7 +259,7 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
   const handleSelectHsCode = (hs: typeof SEEDED_HS_CODES[0]) => {
     setSelectedHsCode(hs.hs_code);
     setCommodityDescription(hs.description);
-    if (hs.commodity_type.toLowerCase().includes('haz') || hs.restricted) {
+    if ((hs.commodity_type || '').toLowerCase().includes('haz') || hs.restricted) {
       setIsHazmat(true);
     } else {
       setIsHazmat(false);
@@ -1020,7 +1021,7 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
 
           {/* Validation Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {validationChecks.details.map((check, idx) => (
+            {(validationChecks?.details || []).map((check, idx) => (
               <div
                 key={idx}
                 className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-all flex items-start gap-3.5"
@@ -1394,7 +1395,7 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
               </h4>
 
               <div className="space-y-2 text-xs">
-                {customsData.requiredDocuments.map((doc, idx) => (
+                {(customsData?.requiredDocuments || []).map((doc, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-slate-700">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span className="font-medium">{doc}</span>
@@ -1608,7 +1609,7 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
       )}
 
       {/* =========================================================
-          STAGE 9: CUSTOMS SIGN-OFF IF REQUIRED
+          STAGE 9: CUSTOMS COMPLIANCE REVIEW & SUBMISSION
           ========================================================= */}
       {currentStep === 'customs_signoff' && (
         <div className="bg-amber-950/20 border border-amber-500/40 rounded-3xl p-6 sm:p-8 space-y-6 animate-in fade-in">
@@ -1619,36 +1620,54 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-950 px-2.5 py-0.5 rounded-full border border-amber-700">
-                  STAGE 9: CUSTOMS & OFFICER SIGN-OFF
+                  STAGE 9: CUSTOMS COMPLIANCE QUEUE
                 </span>
                 <h3 className="text-lg font-black text-slate-900 mt-1">
-                  Customer / Customs Officer Compliance Verification Required
+                  Customs Officer Endorsement Required
                 </h3>
                 <p className="text-xs text-slate-600">
-                  This shipment requires formal sign-off due to {riskData.signOffReason}
+                  This shipment requires formal compliance sign-off due to: <strong>{riskData.signOffReason}</strong>
                 </p>
               </div>
             </div>
 
             <span className="bg-amber-100 text-amber-800 text-xs font-black px-3.5 py-1.5 rounded-xl">
-              ACTION MANDATORY
+              OFFICER REVIEW MANDATORY
             </span>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-amber-200/80 space-y-4 text-xs">
-            <div className="space-y-1">
-              <label className="text-[10px] font-extrabold text-slate-700 uppercase">Officer Approval Notes</label>
-              <textarea
-                rows={2}
-                value={officerNotes}
-                onChange={(e) => setOfficerNotes(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-amber-600"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Required Documents Checklist */}
+            <div className="bg-white rounded-2xl p-5 border border-amber-200/80 space-y-3 text-xs">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-blue-600" />
+                <span>Uploaded Documents for Officer Review</span>
+              </h4>
+              <div className="space-y-2">
+                {(customsData.requiredDocuments || []).map((doc, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="font-semibold text-slate-700">{doc}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">Attached</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="p-3.5 bg-amber-50 rounded-xl text-slate-700 flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Customer Officer Role & Compliance Desk credentials are validated to endorse this rate certificate.</span>
+            {/* Shipper Declaration & Officer Routing */}
+            <div className="bg-white rounded-2xl p-5 border border-amber-200/80 space-y-3 text-xs">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Customs Compliance Desk Routing</span>
+              </h4>
+              <div className="p-3 bg-amber-50 rounded-xl text-slate-700 text-xs leading-relaxed space-y-1">
+                <p className="font-bold text-amber-900">Assigned Desk: Port Customs & ICEGATE Clearance Bureau</p>
+                <p className="text-slate-600">
+                  Per statutory policy, customer officers independently audit HS classification ({customsData.hsCode}), duty obligations ({customsData.bcdPct}% BCD + {customsData.igstPct}% IGST), and hazardous material declarations before quotation release.
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-800">
+                💡 <strong>Note for Testing:</strong> As a Shipper, you submit the dossier. The Customs Officer reviews and signs off from the dedicated <strong>Customs Officer Portal</strong>.
+              </div>
             </div>
           </div>
 
@@ -1662,15 +1681,17 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
               ← Back to Preview
             </button>
 
-            <button
-              type="button"
-              disabled={isProcessingStep}
-              onClick={handleOfficerSignOffAction}
-              className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/25 cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>ENDORSE SIGN-OFF & ISSUE QUOTE</span>
-            </button>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                disabled={isProcessingStep}
+                onClick={handleOfficerSignOffAction}
+                className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/25 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>SUBMIT FOR CUSTOMS SIGN-OFF & ISSUE QUOTE</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -410,7 +410,7 @@ export const LiveGoogleMapTracker: React.FC<LiveGoogleMapTrackerProps> = ({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {shipment.waypoints.map((wp, idx) => (
+          {(shipment?.waypoints || []).map((wp, idx) => (
             <div
               key={idx}
               className={`p-3 rounded-2xl border text-xs ${

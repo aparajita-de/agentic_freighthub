@@ -120,13 +120,16 @@ export const AdminAuditLogsView: React.FC = () => {
     showToast('Audit log records exported to CSV format.');
   };
 
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = (logs || []).filter(log => {
+    if (!log) return false;
+    const term = (searchTerm || '').trim().toLowerCase();
     const matchesSearch =
-      log.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.actorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.actorEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.resourceTarget.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.changeSummary.toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      (log.id || '').toLowerCase().includes(term) ||
+      (log.actorName || '').toLowerCase().includes(term) ||
+      (log.actorEmail || '').toLowerCase().includes(term) ||
+      (log.resourceTarget || '').toLowerCase().includes(term) ||
+      (log.changeSummary || '').toLowerCase().includes(term);
     const matchesRole = roleFilter === 'ALL' || log.actorRole === roleFilter;
     const matchesAction = actionFilter === 'ALL' || log.actionType === actionFilter;
     return matchesSearch && matchesRole && matchesAction;

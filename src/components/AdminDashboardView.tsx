@@ -47,14 +47,14 @@ import { AdminAuditLogsView } from './AdminAuditLogsView';
 import { AdminSettingsView } from './AdminSettingsView';
 
 interface AdminDashboardViewProps {
-  quotations: SavedQuotation[];
+  quotations?: SavedQuotation[];
   onViewQuotePDF: (quote: SavedQuotation) => void;
   activeTab?: AdminTab;
   onTabChange?: (tab: AdminTab) => void;
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
-  quotations,
+  quotations = [],
   onViewQuotePDF,
   activeTab: externalActiveTab,
   onTabChange,
@@ -101,17 +101,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     },
   ]);
 
-  const filteredQuotes = quotations.filter((q) => {
+  const filteredQuotes = (quotations || []).filter((q) => {
+    const term = (searchTerm || '').trim().toLowerCase();
     const orig = q.originCode || q.formData?.originPortCode || '';
     const dest = q.destinationCode || q.formData?.destinationPortCode || '';
     const route = q.routeSummary || '';
     const shipper = q.shipperName || '';
     const matchesSearch =
-      q.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      orig.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dest.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      route.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shipper.toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      (q.id || '').toLowerCase().includes(term) ||
+      orig.toLowerCase().includes(term) ||
+      dest.toLowerCase().includes(term) ||
+      route.toLowerCase().includes(term) ||
+      shipper.toLowerCase().includes(term);
     const matchesMode = filterMode === 'all' || q.transportMode === filterMode;
     return matchesSearch && matchesMode;
   });

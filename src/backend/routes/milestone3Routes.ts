@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Router, Request, Response } from 'express';
 import {
   assessWeatherForRoute,
@@ -10,7 +12,11 @@ import {
   signOffCustomsCheck,
   getAllComplianceChecks,
   getComplianceCheckById,
-  uploadShipmentDocument
+  uploadShipmentDocument,
+  manualEditComplianceCheck,
+  verifySingleChecklistItem,
+  getCustomsAuditLogs,
+  addCustomsAuditLog
 } from '../customs/customsService';
 import {
   assessShipmentCompositeRisk,
@@ -23,10 +29,12 @@ import {
   compareRuleVsMLPricing,
   getMLModelEvaluationMetrics
 } from '../pricing/mlPricingService';
+import { mlDatasetEngine } from '../pricing/mlDatasetEngine';
 import {
   SEEDED_DATA_FRESHNESS,
   SEEDED_SYNC_LOGS,
   SEEDED_REGULATION_DOCS,
+  SEEDED_REGULATION_CHUNKS,
   SEEDED_HS_CODES
 } from '../../data/milestone3Data';
 
@@ -173,21 +181,126 @@ milestone3Router.post('/v1/customs/:check_id/sign-off', (req: Request, res: Resp
 });
 
 /**
- * POST /v1/regulations/search
- * Search regulation corpus with citations
+ * PUT /v1/customs/:check_id/manual-edit
+ * Customer Officer Manual Case Editing (HS code, cargo details, checklist, status, risk level)
  */
-milestone3Router.post('/v1/regulations/search', (req: Request, res: Response) => {
+milestone3Router.put('/v1/customs/:check_id/manual-edit', (req: Request, res: Response) => {
   try {
-    const { query, country, limit } = req.body;
-    if (!query) {
-      return res.status(400).json({ error: 'Query parameter is required' });
+    const { check_id } = req.params;
+    const {
+      hsCodeDeclared,
+      hsCodeMatched,
+      commodityDescription,
+      status,
+      riskLevel,
+      officerNotes,
+      dutyOverrideBcdPct,
+      dutyOverrideIgstPct,
+      checklistItems,
+      officerEmail,
+    } = req.body;
+
+    const updatedCheck = manualEditComplianceCheck(
+      check_id,
+      {
+        hsCodeDeclared,
+        hsCodeMatched,
+        commodityDescription,
+        status,
+        riskLevel,
+        officerNotes,
+        dutyOverrideBcdPct,
+        dutyOverrideIgstPct,
+        checklistItems,
+      },
+      officerEmail || 'customer.officer@freighthub.in'
+    );
+
+    if (!updatedCheck) {
+      return res.status(404).json({ error: 'Compliance check not found' });
     }
-    const results = searchRegulationsRAG(query, country, limit || 5);
-    return res.json({ success: true, data: results, count: results.length });
+
+    return res.json({
+      success: true,
+      message: `Compliance case ${check_id} updated successfully by compliance officer`,
+      data: updatedCheck,
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
 });
+
+/**
+ * PUT /v1/customs/:check_id/verify-item/:item_id
+ * Customer Officer Item-by-item verification and notes
+ */
+milestone3Router.put('/v1/customs/:check_id/verify-item/:item_id', (req: Request, res: Response) => {
+  try {
+    const { check_id, item_id } = req.params;
+    const { status, evidence, citation, officerNotes, officerEmail } = req.body;
+
+    if (!status || !['VERIFIED', 'PENDING', 'DISCREPANCY', 'WAIVED'].includes(status)) {
+      return res.status(400).json({
+        error: 'Invalid status. Must be VERIFIED, PENDING, DISCREPANCY, or WAIVED.',
+      });
+    }
+
+    const updatedCheck = verifySingleChecklistItem(
+      check_id,
+      item_id,
+      { status, evidence, citation, officerNotes },
+      officerEmail || 'customer.officer@freighthub.in'
+    );
+
+    if (!updatedCheck) {
+      return res.status(404).json({ error: 'Compliance check or item not found' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Checklist item ${item_id} verified as ${status}`,
+      data: updatedCheck,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /v1/customs/audit-logs
+ * Compliance & Officer Determination Audit Trail
+ */
+milestone3Router.get('/v1/customs/audit-logs', (_req: Request, res: Response) => {
+  try {
+    const logs = getCustomsAuditLogs();
+    return res.json({ success: true, data: logs, count: logs.length });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET & POST /v1/regulations/search
+ * Search regulation corpus with citations
+ */
+const handleRegulationsSearch = (req: Request, res: Response) => {
+  try {
+    const query = req.body?.query || req.query?.q || req.query?.query || '';
+    const country = req.body?.country || req.query?.country;
+    const limit = Number(req.body?.limit || req.query?.limit || 8);
+
+    if (!query) {
+      return res.json({ success: true, data: SEEDED_REGULATION_CHUNKS, results: SEEDED_REGULATION_CHUNKS, count: SEEDED_REGULATION_CHUNKS.length });
+    }
+    const results = searchRegulationsRAG(String(query), country ? String(country) : undefined, limit);
+    return res.json({ success: true, data: results, results: results, count: results.length });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+milestone3Router.get('/v1/regulations/search', handleRegulationsSearch);
+milestone3Router.post('/v1/regulations/search', handleRegulationsSearch);
 
 /**
  * GET /v1/regulations/documents
@@ -301,10 +414,10 @@ milestone3Router.post('/v1/alerts/:id/acknowledge', (req: Request, res: Response
 // ==========================================
 
 /**
- * POST /v1/ml-pricing/predict
+ * POST /v1/pricing/ml & POST /v1/ml-pricing/predict
  * ML price prediction and comparison
  */
-milestone3Router.post('/v1/ml-pricing/predict', (req: Request, res: Response) => {
+milestone3Router.post(['/v1/pricing/ml', '/v1/ml-pricing/predict'], (req: Request, res: Response) => {
   try {
     const { quoteId, ruleBasePriceInr, ruleBreakdown, ...features } = req.body;
     
@@ -320,6 +433,60 @@ milestone3Router.post('/v1/ml-pricing/predict', (req: Request, res: Response) =>
 
     const prediction = predictMLPrice(features);
     return res.json({ success: true, data: prediction });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /v1/pricing/train
+ * Trigger high-accuracy training of the ML model directly on the 5,000-row CSV dataset
+ */
+milestone3Router.post('/v1/pricing/train', (req: Request, res: Response) => {
+  try {
+    const result = mlDatasetEngine.trainModel();
+    return res.json({ success: true, data: result });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /v1/pricing/dataset/stats
+ * Get exploratory data analysis summary of the 5,000-row CSV training dataset
+ */
+milestone3Router.get('/v1/pricing/dataset/stats', (req: Request, res: Response) => {
+  try {
+    const stats = mlDatasetEngine.getDatasetSummary();
+    const latestTraining = mlDatasetEngine.getLatestTrainingResult();
+    return res.json({
+      success: true,
+      stats,
+      latestTraining,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /v1/pricing/python-script
+ * Return the complete Python training script with NumPy, Pandas, Scikit-Learn, LightGBM
+ */
+milestone3Router.get('/v1/pricing/python-script', (req: Request, res: Response) => {
+  try {
+    const scriptPath = path.join(process.cwd(), 'src/backend/pricing/train_pricing_model.py');
+    const scriptContent = fs.existsSync(scriptPath)
+      ? fs.readFileSync(scriptPath, 'utf-8')
+      : '# train_pricing_model.py not found';
+    return res.json({
+      success: true,
+      fileName: 'train_pricing_model.py',
+      scriptContent,
+      datasetPath: 'src/backend/pricing/data/freight_pricing_training_dataset_5000.csv',
+      pythonVersion: '3.10+',
+      dependencies: ['numpy>=1.24.0', 'pandas>=2.0.0', 'scikit-learn>=1.3.0', 'lightgbm>=4.0.0', 'joblib>=1.3.0'],
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

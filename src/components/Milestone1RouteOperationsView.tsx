@@ -273,11 +273,11 @@ export const Milestone1RouteOperationsView: React.FC<Milestone1RouteOperationsVi
               <div className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-black flex items-center justify-center">2</span>
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                  Route Options ({selectedShipment.routeOptions.length} Generated)
+                  Route Options ({(selectedShipment.routeOptions || []).length} Generated)
                 </h4>
               </div>
               <div className="space-y-2.5">
-                {selectedShipment.routeOptions.map((opt) => {
+                {(selectedShipment.routeOptions || []).map((opt) => {
                   const isChosen = selectedShipment.selectedRoute?.id === opt.id;
                   return (
                     <div

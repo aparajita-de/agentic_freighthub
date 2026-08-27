@@ -568,7 +568,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {activeQuote?.components.map((comp, idx) => (
+                  {(activeQuote?.components || []).map((comp, idx) => (
                     <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                       <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">{comp.code}</td>
                       <td className="py-2.5 px-3 text-slate-200">{comp.name}</td>
