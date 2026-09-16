@@ -9,11 +9,9 @@ import {
   Sparkles
 } from 'lucide-react';
 import { AboutSection } from './AboutSection';
+import { BrokerAboutSection } from './BrokerAboutSection';
 import { PromotionsSection } from './PromotionsSection';
 import { ContactSection } from './ContactSection';
-import { BrokerAboutSection } from './BrokerAboutSection';
-import { BrokerServicesSection } from './BrokerServicesSection';
-import { BrokerContactSection } from './BrokerContactSection';
 import { UserRole } from '../types';
 
 interface CompanyInfoPageProps {
@@ -25,13 +23,12 @@ interface CompanyInfoPageProps {
   onNavigateBack?: () => void;
   onAccessSystem?: () => void;
   onNavigateToWorkspace?: (view?: 'dashboard' | 'calculation') => void;
-  onNavigateToBrokerTab?: (tab: 'margin-calculator' | 'client-quotes' | 'carrier-rates' | 'commissions') => void;
   brokerName?: string;
   brokerEmail?: string;
 }
 
 export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
-  userRole = 'user',
+  userRole = 'customer',
   initialSection,
   targetSection,
   selectedCoupon = null,
@@ -39,11 +36,11 @@ export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
   onNavigateBack,
   onAccessSystem,
   onNavigateToWorkspace,
-  onNavigateToBrokerTab,
   brokerName,
   brokerEmail,
 }) => {
   const activeSection = initialSection || targetSection;
+  const isBroker = userRole === 'broker';
 
   // Smooth scroll to targeted section on load
   useEffect(() => {
@@ -70,11 +67,9 @@ export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
     if (onNavigateBack) {
       onNavigateBack();
     } else if (onNavigateToWorkspace) {
-      onNavigateToWorkspace(userRole === 'broker' ? 'dashboard' : 'calculation');
+      onNavigateToWorkspace(userRole === 'admin' ? 'dashboard' : 'calculation');
     }
   };
-
-  const isBroker = userRole === 'broker';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-12 w-full">
@@ -88,10 +83,12 @@ export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
           >
             <ArrowLeft className="w-4 h-4" />
             <span>
-              {isBroker
-                ? 'Back to Broker Console'
-                : userRole === 'admin'
+              {userRole === 'admin'
                 ? 'Back to Admin Control'
+                : userRole === 'freight-agent'
+                ? 'Back to Freight Agent Desk'
+                : userRole === 'customs-officer'
+                ? 'Back to Customs Officer Desk'
                 : 'Back to Freight Calculator'}
             </span>
           </button>
@@ -99,7 +96,7 @@ export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
           <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
           <div className="text-xs font-extrabold text-slate-600">
-            {isBroker ? 'Broker Partner Ecosystem & Capabilities' : 'Company & Capabilities Overview'}
+            Company & Capabilities Overview
           </div>
         </div>
 
@@ -178,43 +175,20 @@ export const CompanyInfoPage: React.FC<CompanyInfoPageProps> = ({
       {isBroker ? <BrokerAboutSection /> : <AboutSection />}
 
       {/* 2. SERVICES & OFFERS SECTION */}
-      {isBroker ? (
-        <BrokerServicesSection
-          onNavigateToMarginStudio={() => {
-            if (onNavigateToBrokerTab) {
-              onNavigateToBrokerTab('margin-calculator');
-            } else if (onNavigateToWorkspace) {
-              onNavigateToWorkspace('dashboard');
-            }
-          }}
-          onNavigateToCarrierRates={() => {
-            if (onNavigateToBrokerTab) {
-              onNavigateToBrokerTab('carrier-rates');
-            } else if (onNavigateToWorkspace) {
-              onNavigateToWorkspace('dashboard');
-            }
-          }}
-        />
-      ) : (
-        <PromotionsSection
-          selectedCoupon={selectedCoupon}
-          onApplyCoupon={(code) => {
-            if (onApplyCoupon) onApplyCoupon(code);
-            if (onAccessSystem) {
-              onAccessSystem();
-            } else if (onNavigateToWorkspace) {
-              onNavigateToWorkspace('calculation');
-            }
-          }}
-        />
-      )}
+      <PromotionsSection
+        selectedCoupon={selectedCoupon}
+        onApplyCoupon={(code) => {
+          if (onApplyCoupon) onApplyCoupon(code);
+          if (onAccessSystem) {
+            onAccessSystem();
+          } else if (onNavigateToWorkspace) {
+            onNavigateToWorkspace('calculation');
+          }
+        }}
+      />
 
       {/* 3. CONTACT SECTION */}
-      {isBroker ? (
-        <BrokerContactSection brokerName={brokerName} brokerEmail={brokerEmail} />
-      ) : (
-        <ContactSection />
-      )}
+      <ContactSection />
     </div>
   );
 };

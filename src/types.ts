@@ -1,10 +1,115 @@
 export type TransportMode = 'ocean' | 'air' | 'ground' | 'express';
 
 export type OceanLoadType = 'FCL' | 'LCL';
-export type Incoterm = 'FOB' | 'CIF' | 'EXW' | 'DDP' | 'CFR';
+export type Incoterm = 'FOB' | 'CIF' | 'EXW' | 'DDP' | 'CFR' | 'FCA' | 'DAP';
 export type PackageType = 'Pallet' | 'Wooden Crate' | 'Carton' | '20GP Container' | '40HC Container' | 'Drums' | 'Bales';
 export type ContainerSpec = '20GP' | '40HC' | '40GP' | 'LCL_SLOT' | 'EURO_PALLET';
 export type CurrencyCode = 'INR' | 'USD' | 'AED' | 'EUR' | 'GBP';
+
+export type ShipmentStatus = 'DRAFT' | 'SUBMITTED' | 'PROCESSING' | 'ANALYZED' | 'QUOTED' | 'CLOSED' | 'CANCELLED';
+export type QuoteStatus =
+  | 'DRAFT'
+  | 'GENERATED'
+  | 'REQUESTED'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'SENT'
+  | 'ACCEPTED'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'BOOKED'
+  | 'PENDING_BROKER_REVIEW'
+  | 'BROKER_FINALIZED'
+  | 'ISSUED'
+  | 'SENT_TO_COMPANY'
+  | 'AGENT_REVISED'
+  | 'APPROVED_BY_CUSTOMER'
+  | 'UNDER_CUSTOMS_REVIEW'
+  | 'ADDITIONAL_DOCS_REQUESTED'
+  | 'CUSTOMS_OFFICER_APPROVED'
+  | 'BOOKING_CONFIRMED';
+
+export interface TradeDocument {
+  id: string;
+  name: string;
+  title?: string;
+  file?: string;
+  type: 'invoice' | 'packing_list' | 'bol' | 'coo' | 'additional';
+  fileUrl?: string;
+  dataUrl?: string;
+  fileSize?: string;
+  size?: string;
+  uploadedAt: string;
+  status: 'uploaded' | 'verified' | 'rejected' | 'pending' | 'approved';
+  companyStatus?: 'awaiting_review' | 'approved' | 'rejected';
+  customsStatus?: 'awaiting_review' | 'approved' | 'rejected';
+  verifiedBy?: string;
+  verificationNotes?: string;
+  companyNotes?: string;
+  rejectionReason?: string;
+}
+
+export interface RequestedDocument {
+  id: string;
+  name: string;
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: 'pending' | 'submitted';
+  submittedAt?: string;
+  fileName?: string;
+}
+
+export interface CarrierOptionQuote {
+  carrierId: string;
+  carrierName: string;
+  logoCode?: string;
+  totalOfferInr: number;
+  currency: CurrencyCode;
+  transitDays: number;
+  directOrTranshipment: string;
+  reliabilityScore: string;
+  freeDetentionDays: number;
+  co2EmissionsKg?: number;
+  equipmentAvailability: 'High' | 'Guaranteed' | 'Limited' | string;
+  features: string[];
+  breakdown: {
+    baseFreight: number;
+    bafFuelSurcharge: number;
+    terminalHandlingCharge: number;
+    documentationFee: number;
+    insuranceFee: number;
+    riskAdjustment: number;
+    taxAmount: number;
+    total: number;
+  };
+}
+
+export interface PlatformNotification {
+  id: string;
+  targetRole: 'customer' | 'freight-agent' | 'customs-officer' | 'admin';
+  targetUserEmail?: string;
+  quoteId?: string;
+  selectionRef?: string;
+  bookingId?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'action_required' | 'success' | 'warning';
+  timestamp: string;
+  isRead: boolean;
+  actionView?: string;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  quoteId: string;
+  action: string;
+  modifiedBy: string;
+  reason?: string;
+  previousValue?: string | number;
+  newValue?: string | number;
+  timestamp: string;
+}
 
 export interface PortHub {
   code: string;
@@ -40,6 +145,8 @@ export interface QuoteFormState {
   destinationPortCode: string;
   pickupHubId: string;
   deliveryHubId: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
   cargoReadyDate: string;
   requiredDeliveryDate: string;
   transportMode: TransportMode;
@@ -94,12 +201,37 @@ export interface TariffBreakdown {
   estimatedArrivalDate: string;
   originPortName?: string;
   destPortName?: string;
+  carrierName?: string;
+  transitDaysRange?: string;
   equipmentSummary?: string;
+  ruleBasedPriceInr?: number;
+  aiPredictedPriceInr?: number;
+  recommendedPriceInr?: number;
+  weatherRiskScore?: number;
+  customsRiskScore?: number;
+  routeRiskScore?: number;
+  compositeRiskScore?: number;
+  overallRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  chargeableWeightKg?: number;
+  totalVolumeCbm?: number;
+  totalTariffInr?: number;
+  baseFreightInr?: number;
+  fuelSurchargeInr?: number;
+  bunkerFuelSurchargeInr?: number;
+  terminalHandlingInr?: number;
+  terminalHandlingOriginInr?: number;
+  terminalHandlingDestInr?: number;
+  documentationFeeInr?: number;
+  cargoInsuranceInr?: number;
+  aiMarketRiskAdjustmentInr?: number;
+  gstVatInr?: number;
 }
 
 export interface SavedQuotation {
   id: string;
+  shipmentId?: string;
   shipperName: string;
+  shipperEmail?: string;
   companyName: string;
   routeSummary: string;
   originCode: string;
@@ -108,7 +240,8 @@ export interface SavedQuotation {
   oceanLoadType?: OceanLoadType;
   tariffAmount: number;
   currency: CurrencyCode;
-  status: 'DRAFT' | 'PENDING_BROKER_REVIEW' | 'BROKER_FINALIZED' | 'ISSUED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'BOOKED';
+  shipmentStatus?: ShipmentStatus;
+  status: QuoteStatus;
   createdAt: string;
   validUntil?: string;
   cargoSummary: string;
@@ -121,6 +254,35 @@ export interface SavedQuotation {
   brokerProfitInr?: number;
   isBrokerEdited?: boolean;
   brokerReviewed?: boolean;
+  priceModificationReason?: string;
+  customsFlags?: string[];
+  customsCaseId?: string;
+  customsStatus?: string;
+  weatherAlerts?: string[];
+  auditLogs?: AuditLogRecord[];
+  selectionRef?: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  selectedCarrier?: CarrierOptionQuote;
+  selectedCarrierOption?: CarrierOptionQuote;
+  carrierQuotes?: CarrierOptionQuote[];
+  uploadedDocuments?: TradeDocument[];
+  tradeDocuments?: TradeDocument[];
+  requestedDocuments?: RequestedDocument[];
+  bookingReference?: string;
+  clearanceCertificateNumber?: string;
+  carrierVoyageNumber?: string;
+  containerEquipmentNumber?: string;
+  containerSealNumber?: string;
+  freeDetentionDays?: number;
+  agentVerifiedAt?: string;
+  agentChecklist?: Record<string, 'confirmed' | 'needs_attention' | 'cannot_be_met'> | { id: string; name: string; status: string; verifiedAt?: string; }[];
+  agentNotes?: string;
+  agentRevisedPrice?: number;
+  agentRevisedBreakdown?: TariffBreakdown;
+  customsOfficerNotes?: string;
+  customsClearanceDate?: string;
+  customerConfirmedAt?: string;
 }
 
 export interface QuoteDraft {
@@ -180,7 +342,7 @@ export interface CorridorBenchmark {
   rateInr: string;
 }
 
-export type UserRole = 'shipper' | 'user' | 'business' | 'freight-agent' | 'broker' | 'admin' | 'customer-officer' | 'customs-officer';
+export type UserRole = 'customer' | 'user' | 'shipper' | 'freight-agent' | 'customs-officer' | 'customer-officer' | 'admin' | 'business' | 'broker';
 
 export * from './types/milestone3';
 

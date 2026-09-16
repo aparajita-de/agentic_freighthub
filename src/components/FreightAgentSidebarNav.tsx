@@ -7,11 +7,15 @@ import {
   Anchor,
   Radio,
   FileCheck2,
-  Navigation
+  Navigation,
+  Building,
+  Sparkles
 } from 'lucide-react';
 
 export type FreightAgentTab =
   | 'operations-overview'
+  | 'company-verification'
+  | 'quote-review'
   | 'route-optimizer'
   | 'carrier-spot-bidding'
   | 'cargo-tracking'
@@ -21,6 +25,7 @@ interface FreightAgentSidebarNavProps {
   activeTab: FreightAgentTab;
   onSelectTab: (tab: FreightAgentTab) => void;
   shipmentCount?: number;
+  pendingQuoteCount?: number;
 }
 
 interface NavItem {
@@ -37,6 +42,7 @@ export const FreightAgentSidebarNav: React.FC<FreightAgentSidebarNavProps> = ({
   activeTab,
   onSelectTab,
   shipmentCount = 14,
+  pendingQuoteCount = 0,
 }) => {
   const navItems: NavItem[] = [
     {
@@ -44,6 +50,23 @@ export const FreightAgentSidebarNav: React.FC<FreightAgentSidebarNavProps> = ({
       label: 'Agent Dispatch Desk',
       subLabel: 'Vessel schedules & live alerts',
       icon: Anchor,
+    },
+    {
+      id: 'company-verification',
+      label: 'Company Verification Desk',
+      subLabel: 'AI analysis & quote rate adjustment',
+      icon: Sparkles,
+      badge: pendingQuoteCount > 0 ? pendingQuoteCount : 'AI Ready',
+      badgeColor: 'bg-blue-100 text-blue-900 border-blue-200',
+      highlight: true,
+    },
+    {
+      id: 'quote-review',
+      label: 'Quote Review & Dispatch',
+      subLabel: 'Customer quote requests pending approval',
+      icon: FileCheck2,
+      badge: pendingQuoteCount > 0 ? pendingQuoteCount : undefined,
+      badgeColor: 'bg-amber-100 text-amber-900 border-amber-200',
     },
     {
       id: 'cargo-tracking',

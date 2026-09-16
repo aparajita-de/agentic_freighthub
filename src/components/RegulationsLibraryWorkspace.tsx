@@ -34,16 +34,8 @@ export const RegulationsLibraryWorkspace: React.FC<RegulationsLibraryWorkspacePr
 
   // Active HS Details
   const activeHs =
-    (hsCatalog || []).find((h) => h && h.hsCode === selectedHsCode) ||
-    (hsCatalog || [])[0] || {
-      hsCode: '8471.30.10',
-      description: 'High-performance laptops and data processing machines',
-      basicCustomsDutyPct: 0,
-      igstPct: 18,
-      socialWelfareSurchargePct: 10,
-      defaultRiskLevel: 'LOW',
-      mandatoryDocuments: ['Commercial Invoice', 'Packing List', 'Certificate of Origin'],
-    };
+    (hsCatalog || []).find((h) => h && h.hs_code === selectedHsCode) ||
+    (hsCatalog || [])[0] || null;
 
   // Search RAG pipeline
   const handleRAGSearch = async (queryToRun: string = searchQuery) => {
@@ -240,8 +232,8 @@ export const RegulationsLibraryWorkspace: React.FC<RegulationsLibraryWorkspacePr
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 font-mono"
               >
                 {(hsCatalog || []).map((h, hIdx) => (
-                  <option key={`hs-${h.hsCode || hIdx}-${hIdx}`} value={h.hsCode}>
-                    {h.hsCode} — {h.description}
+                  <option key={`hs-${h.hs_code || hIdx}-${hIdx}`} value={h.hs_code}>
+                    {h.hs_code} — {h.description}
                   </option>
                 ))}
               </select>
@@ -257,19 +249,19 @@ export const RegulationsLibraryWorkspace: React.FC<RegulationsLibraryWorkspacePr
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
                 <div>
                   <span className="text-[10px] text-slate-500 block">Basic Duty (BCD)</span>
-                  <span className="font-mono font-bold text-emerald-400">{activeHs?.basicCustomsDutyPct ?? 0}%</span>
+                  <span className="font-mono font-bold text-emerald-400">{activeHs?.basic_customs_duty_pct ?? 0}%</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block">IGST Rate</span>
-                  <span className="font-mono font-bold text-emerald-400">{activeHs?.igstPct ?? 18}%</span>
+                  <span className="font-mono font-bold text-emerald-400">{activeHs?.igst_pct ?? 18}%</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block">SWS Surcharge</span>
-                  <span className="font-mono font-bold text-slate-300">{activeHs?.socialWelfareSurchargePct ?? 10}%</span>
+                  <span className="font-mono font-bold text-slate-300">10%</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block">Risk Category</span>
-                  <span className="font-bold text-amber-400">{activeHs?.defaultRiskLevel || 'LOW'}</span>
+                  <span className="font-bold text-amber-400">{activeHs?.restricted ? 'HIGH' : activeHs?.requires_inspection ? 'MEDIUM' : 'LOW'}</span>
                 </div>
               </div>
             </div>
@@ -280,7 +272,7 @@ export const RegulationsLibraryWorkspace: React.FC<RegulationsLibraryWorkspacePr
                 Mandatory Documentation Required
               </h4>
               <ul className="space-y-1.5 text-xs text-slate-300">
-                {(activeHs?.mandatoryDocuments || []).map((doc, idx) => (
+                {['Commercial Invoice', 'Packing List', 'Certificate of Origin'].map((doc, idx) => (
                   <li key={`doc-${idx}-${doc.slice(0, 10)}`} className="flex items-start gap-2 bg-slate-800/40 p-2 rounded border border-slate-700/50">
                     <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />
                     <span>{doc}</span>

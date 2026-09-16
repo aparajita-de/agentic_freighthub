@@ -7,9 +7,8 @@ interface HeroSectionProps {
   onAccessSystem: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ userRole = 'user', onAccessSystem }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ userRole = 'customer', onAccessSystem }) => {
   const isAdmin = userRole === 'admin';
-  const isBroker = userRole === 'broker';
 
   return (
     <div id="home-section" className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100 mb-8">

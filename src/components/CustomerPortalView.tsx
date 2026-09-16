@@ -499,7 +499,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
           quotation: s.quotation
             ? {
                 ...s.quotation,
-                status: 'APPROVED',
+                status: 'APPROVED' as const,
                 approvedAt: new Date().toISOString().split('T')[0],
               }
             : undefined,
@@ -897,8 +897,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 >
                   <option value="">Select an option</option>
                   {activeCargoTypes.map((cg) => (
-                    <option key={cg._id || cg.code} value={cg.label || cg.description || cg.code}>
-                      {cg.label || cg.description || cg.code} ({cg.code})
+                    <option key={cg._id || cg.code} value={cg.label || cg.code}>
+                      {cg.label || cg.code} ({cg.code})
                     </option>
                   ))}
                 </select>
@@ -921,7 +921,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   <option value="">Select an option</option>
                   {activeContainerTypes.map((ct) => (
                     <option key={ct._id || ct.code} value={ct.code}>
-                      {ct.code} — {ct.description || ct.name || ct.isoCode}
+                      {ct.code} — {ct.description}
                     </option>
                   ))}
                 </select>

@@ -45,27 +45,27 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
 
   // Dynamic Composite Score Calculation
   const compositeScore = Math.round(
-    (riskData.weatherRiskScore * (weights.weather / 100)) +
-    (riskData.customsRiskScore * (weights.customs / 100)) +
-    (riskData.routeRiskScore * (weights.route / 100)) +
-    (riskData.portRiskScore * (weights.port / 100)) +
-    (riskData.cargoRiskScore * (weights.cargo / 100))
+    (riskData.weather_score * (weights.weather / 100)) +
+    (riskData.customs_score * (weights.customs / 100)) +
+    (riskData.route_score * (weights.route / 100)) +
+    (riskData.port_score * (weights.port / 100)) +
+    (riskData.cargo_score * (weights.cargo / 100))
   );
 
   // Alerts State
-  const [alerts, setAlerts] = useState<WeatherAlert[]>(weatherData?.activeAlerts || []);
+  const [alerts, setAlerts] = useState<WeatherAlert[]>(weatherData?.active_alerts || []);
   const [alertFilter, setAlertFilter] = useState<'ALL' | 'ACTIVE' | 'ACKNOWLEDGED'>('ALL');
 
   const handleAcknowledgeAlert = (id: string) => {
     setAlerts((prev) =>
-      (prev || []).map((a) => (a && a.id === id ? { ...a, isAcknowledged: true } : a))
+      (prev || []).map((a) => (a && a.id === id ? { ...a, acknowledged_at: new Date().toISOString() } : a))
     );
   };
 
   const filteredAlerts = (alerts || []).filter((a) => {
     if (!a) return false;
-    if (alertFilter === 'ACTIVE') return !a.isAcknowledged;
-    if (alertFilter === 'ACKNOWLEDGED') return a.isAcknowledged;
+    if (alertFilter === 'ACTIVE') return !a.acknowledged_at;
+    if (alertFilter === 'ACKNOWLEDGED') return !!a.acknowledged_at;
     return true;
   });
 
@@ -143,12 +143,12 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                 <span className="text-slate-300 flex items-center gap-1.5">
                   <CloudRain className="w-3.5 h-3.5 text-blue-400" /> Weather & Sea State Risk
                 </span>
-                <span className="text-slate-200 font-mono">{riskData.weatherRiskScore}/100 (Weight {weights.weather}%)</span>
+                <span className="text-slate-200 font-mono">{riskData.weather_score}/100 (Weight {weights.weather}%)</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all"
-                  style={{ width: `${riskData.weatherRiskScore}%` }}
+                  style={{ width: `${riskData.weather_score}%` }}
                 />
               </div>
             </div>
@@ -159,12 +159,12 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                 <span className="text-slate-300 flex items-center gap-1.5">
                   <ShieldAlert className="w-3.5 h-3.5 text-purple-400" /> Customs Compliance Risk
                 </span>
-                <span className="text-slate-200 font-mono">{riskData.customsRiskScore}/100 (Weight {weights.customs}%)</span>
+                <span className="text-slate-200 font-mono">{riskData.customs_score}/100 (Weight {weights.customs}%)</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-purple-500 rounded-full transition-all"
-                  style={{ width: `${riskData.customsRiskScore}%` }}
+                  style={{ width: `${riskData.customs_score}%` }}
                 />
               </div>
             </div>
@@ -175,12 +175,12 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                 <span className="text-slate-300 flex items-center gap-1.5">
                   <Compass className="w-3.5 h-3.5 text-emerald-400" /> Route & Corridor Bottleneck Risk
                 </span>
-                <span className="text-slate-200 font-mono">{riskData.routeRiskScore}/100 (Weight {weights.route}%)</span>
+                <span className="text-slate-200 font-mono">{riskData.route_score}/100 (Weight {weights.route}%)</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all"
-                  style={{ width: `${riskData.routeRiskScore}%` }}
+                  style={{ width: `${riskData.route_score}%` }}
                 />
               </div>
             </div>
@@ -191,12 +191,12 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                 <span className="text-slate-300 flex items-center gap-1.5">
                   <Anchor className="w-3.5 h-3.5 text-cyan-400" /> Port Berth Congestion Risk
                 </span>
-                <span className="text-slate-200 font-mono">{riskData.portRiskScore}/100 (Weight {weights.port}%)</span>
+                <span className="text-slate-200 font-mono">{riskData.port_score}/100 (Weight {weights.port}%)</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-cyan-500 rounded-full transition-all"
-                  style={{ width: `${riskData.portRiskScore}%` }}
+                  style={{ width: `${riskData.port_score}%` }}
                 />
               </div>
             </div>
@@ -207,12 +207,12 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                 <span className="text-slate-300 flex items-center gap-1.5">
                   <Ship className="w-3.5 h-3.5 text-amber-400" /> Cargo Fragility & Hazard Risk
                 </span>
-                <span className="text-slate-200 font-mono">{riskData.cargoRiskScore}/100 (Weight {weights.cargo}%)</span>
+                <span className="text-slate-200 font-mono">{riskData.cargo_score}/100 (Weight {weights.cargo}%)</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full transition-all"
-                  style={{ width: `${riskData.cargoRiskScore}%` }}
+                  style={{ width: `${riskData.cargo_score}%` }}
                 />
               </div>
             </div>
@@ -248,7 +248,7 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
               <div
                 key={alert.id}
                 className={`p-3.5 rounded-lg border text-xs ${
-                  alert.severity === 'CRITICAL' || alert.severity === 'SEVERE'
+                  alert.severity === 'CRITICAL'
                     ? 'bg-red-950/20 border-red-800/80'
                     : 'bg-amber-950/20 border-amber-800/80'
                 }`}
@@ -257,14 +257,14 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
                   <span className="font-bold text-white flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> {alert.title}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">{alert.location}</span>
+                  <span className="text-[10px] font-mono text-slate-400">{alert.route_id}</span>
                 </div>
 
-                <p className="text-[11px] text-slate-300 leading-normal mb-2.5">{alert.description}</p>
+                <p className="text-[11px] text-slate-300 leading-normal mb-2.5">{alert.message}</p>
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px]">
-                  <span className="text-slate-400">Recommendation: <strong className="text-slate-200">{alert.recommendedAction}</strong></span>
-                  {!alert.isAcknowledged ? (
+                  <span className="text-slate-400">Recommendation: <strong className="text-slate-200">{alert.acknowledged_at ? 'Monitor conditions' : 'Review & acknowledge alert'}</strong></span>
+                  {!alert.acknowledged_at ? (
                     <button
                       onClick={() => handleAcknowledgeAlert(alert.id)}
                       className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded font-semibold transition-colors cursor-pointer"
@@ -289,7 +289,7 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Navigation className="w-4 h-4 text-cyan-400" />
-              Live Marine Weather & Swell Overlay (Corridor: {weatherData.routeId})
+              Live Marine Weather & Swell Overlay (Corridor: {weatherData.route_id})
             </h3>
             <p className="text-xs text-slate-400">
               Live AIS vessel tracking overlay with wave height, gust speed, and squall zone forecasting
@@ -298,13 +298,13 @@ export const RiskWeatherDashboardWorkspace: React.FC = () => {
 
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5 text-blue-400 font-mono">
-              <Waves className="w-3.5 h-3.5" /> Max Swell: <strong>{weatherData.maxWaveHeightMeters}m</strong>
+              <Waves className="w-3.5 h-3.5" /> Max Swell: <strong>{Math.max(0, ...(weatherData.sampled_observations || []).map((o) => o.wave_height))}m</strong>
             </div>
             <div className="flex items-center gap-1.5 text-cyan-400 font-mono">
-              <Wind className="w-3.5 h-3.5" /> Max Gust: <strong>{weatherData.maxWindSpeedKnots} kts</strong>
+              <Wind className="w-3.5 h-3.5" /> Max Gust: <strong>{Math.max(0, ...(weatherData.sampled_observations || []).map((o) => o.wind_speed))} kts</strong>
             </div>
             <div className="flex items-center gap-1.5 text-amber-400 font-mono">
-              <Thermometer className="w-3.5 h-3.5" /> Avg Temp: <strong>{weatherData.avgTemperatureCelsius}°C</strong>
+              <Thermometer className="w-3.5 h-3.5" /> Avg Temp: <strong>{((weatherData.sampled_observations || []).length > 0 ? (weatherData.sampled_observations.reduce((sum, o) => sum + o.temperature, 0) / weatherData.sampled_observations.length) : 0).toFixed(1)}°C</strong>
             </div>
           </div>
         </div>

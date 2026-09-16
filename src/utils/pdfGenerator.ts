@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { SavedQuotation } from '../types';
 import { formatCurrency } from './calculator';
 
-export function generateQuotePDF(quote: SavedQuotation) {
+export function generateQuotePDF(quote: SavedQuotation, customFilename?: string) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -157,5 +157,6 @@ export function generateQuotePDF(quote: SavedQuotation) {
   doc.setTextColor(148, 163, 184);
   doc.text('FreightHub Intelligent Logistics Systems Ltd. • Bandra-Kurla Complex (BKC), Mumbai • support@freighthub.in', 105, 285, { align: 'center' });
 
-  doc.save(`FreightHub_Quotation_${quote.id}.pdf`);
+  doc.save(customFilename || `FreightHub_Quotation_${quote.id}.pdf`);
+  return doc;
 }

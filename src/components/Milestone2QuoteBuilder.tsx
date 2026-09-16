@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Calculator,
   ShieldAlert,
@@ -17,7 +17,8 @@ import {
   Plus,
   Lock,
   Download,
-  DollarSign
+  DollarSign,
+  AlertCircle
 } from 'lucide-react';
 import { Money } from './Money';
 import { buildCostBreakdown } from '../backend/pricing/breakdown';
@@ -54,16 +55,32 @@ interface QuoteVersion {
   components: ComponentLine[];
 }
 
+interface ValidationErrors {
+  transportMode?: string;
+  originPort?: string;
+  destPort?: string;
+  incoterm?: string;
+  containerSpec?: string;
+  containerCount?: string;
+  grossWeightKg?: string;
+  declaredValue?: string;
+}
+
 export const Milestone2QuoteBuilder: React.FC = () => {
-  const [originPort, setOriginPort] = useState('MAA');
-  const [destPort, setDestPort] = useState('SGSIN');
-  const [transportMode, setTransportMode] = useState<'ocean' | 'air' | 'express'>('ocean');
+  // Required Input Parameters (Initialized to empty/zero to force explicit user input)
+  const [originPort, setOriginPort] = useState('');
+  const [destPort, setDestPort] = useState('');
+  const [transportMode, setTransportMode] = useState<'ocean' | 'air' | 'express' | ''>('');
   const [incoterm, setIncoterm] = useState('FOB');
-  const [containerSpec, setContainerSpec] = useState('40HC');
-  const [containerCount, setContainerCount] = useState(2);
-  const [grossWeightKg, setGrossWeightKg] = useState(1200);
-  const [declaredValue, setDeclaredValue] = useState(500000);
+  const [containerSpec, setContainerSpec] = useState('');
+  const [containerCount, setContainerCount] = useState<number | ''>('');
+  const [grossWeightKg, setGrossWeightKg] = useState<number | ''>('');
+  const [declaredValue, setDeclaredValue] = useState<number | ''>('');
   const [requestedMarginPct, setRequestedMarginPct] = useState(15.0);
+
+  // Validation State Tracking
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
 
   // Active Quote State
   const [activeQuote, setActiveQuote] = useState<QuoteVersion | null>(null);
@@ -83,8 +100,77 @@ export const Milestone2QuoteBuilder: React.FC = () => {
   const [importStep, setImportStep] = useState<'upload' | 'review'>('upload');
   const [validationReport, setValidationReport] = useState<any>(null);
 
+  // Field Touch Tracking Helper
+  const markFieldTouched = (fieldName: string) => {
+    setTouchedFields((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
+  // Comprehensive Required Field Validation Engine
+  const getValidationErrors = (): ValidationErrors => {
+    const errors: ValidationErrors = {};
+
+    if (!transportMode) {
+      errors.transportMode = 'Transport mode selection is required.';
+    }
+    if (!originPort) {
+      errors.originPort = 'Origin gateway is required.';
+    }
+    if (!destPort) {
+      errors.destPort = 'Destination gateway is required.';
+    } else if (originPort && originPort === destPort) {
+      errors.destPort = 'Origin and Destination gateways cannot be identical.';
+    }
+    if (!incoterm) {
+      errors.incoterm = 'Incoterm trade agreement selection is required.';
+    }
+    if (!containerSpec) {
+      errors.containerSpec = 'Container / equipment specification is required.';
+    }
+    if (containerCount === '' || Number(containerCount) <= 0 || isNaN(Number(containerCount))) {
+      errors.containerCount = 'Quantity must be a valid number greater than 0.';
+    }
+    if (grossWeightKg === '' || Number(grossWeightKg) <= 0 || isNaN(Number(grossWeightKg))) {
+      errors.grossWeightKg = 'Gross Weight must be a valid number greater than 0 KG.';
+    }
+    if (declaredValue === '' || Number(declaredValue) <= 0 || isNaN(Number(declaredValue))) {
+      errors.declaredValue = 'Declared Cargo Value must be a valid amount greater than $0.';
+    }
+
+    return errors;
+  };
+
+  const validationErrors = getValidationErrors();
+  const errorKeys = Object.keys(validationErrors) as (keyof ValidationErrors)[];
+  const isFormValid = errorKeys.length === 0;
+
+  // Function to inspect whether a specific field should show red error styling
+  const isFieldInvalid = (fieldName: keyof ValidationErrors): boolean => {
+    return Boolean((touchedFields[fieldName] || formSubmitted) && validationErrors[fieldName]);
+  };
+
+  // Validate Required Fields before permitting calculation
+  const validateRequiredFields = (): boolean => {
+    setFormSubmitted(true);
+    const errors = getValidationErrors();
+    const errorMessages = Object.values(errors);
+
+    if (errorMessages.length > 0) {
+      setErrorMessage(`Cannot calculate quotation: ${errorMessages.length} required field(s) missing or invalid.`);
+      setActiveQuote(null); // Clear stale calculated quote if inputs become invalid
+      return false;
+    }
+
+    setErrorMessage(null);
+    return true;
+  };
+
   // Calculate & Build Cost Breakdown
   const handleCalculateQuote = async (margin: number = requestedMarginPct) => {
+    // Strictly block calculation if required fields are missing or invalid
+    if (!validateRequiredFields()) {
+      return;
+    }
+
     setErrorMessage(null);
     setFloorWarning(false);
 
@@ -92,7 +178,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
 
     try {
       const res = await fetch(
-        `/api/v1/pricing/cost-breakdown?originPortCode=${originPort}&destinationPortCode=${destPort}&transportMode=${transportMode}&containerSpec=${containerSpec}&containerCount=${containerCount}&grossWeightKg=${grossWeightKg}&incoterm=${incoterm}&requestedMarginPct=${margin}`
+        `/api/v1/pricing/cost-breakdown?originPortCode=${originPort}&destinationPortCode=${destPort}&transportMode=${transportMode}&containerSpec=${containerSpec}&containerCount=${containerCount}&grossWeightKg=${grossWeightKg}&declaredValue=${declaredValue}&incoterm=${incoterm}&requestedMarginPct=${margin}`
       );
       if (res.ok) {
         const json = await res.json();
@@ -110,8 +196,8 @@ export const Milestone2QuoteBuilder: React.FC = () => {
         destinationPortCode: destPort,
         transportMode: transportMode as any,
         containerSpec: containerSpec as any,
-        containerCount: containerCount,
-        grossWeightKg: grossWeightKg,
+        containerCount: Number(containerCount),
+        grossWeightKg: Number(grossWeightKg),
         incoterm: incoterm,
         requestedMarginPct: margin,
       });
@@ -160,14 +246,12 @@ export const Milestone2QuoteBuilder: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    handleCalculateQuote();
-  }, []);
-
-  // Handle Margin Slider Release (Fires API on release, not on drag)
+  // Handle Margin Slider Release (Fires calculation only if all required fields are valid)
   const handleMarginChangeCommitted = (newMargin: number) => {
     setRequestedMarginPct(newMargin);
-    handleCalculateQuote(newMargin);
+    if (validateRequiredFields()) {
+      handleCalculateQuote(newMargin);
+    }
   };
 
   // Two-Phase Rate Card Validation
@@ -203,7 +287,6 @@ export const Milestone2QuoteBuilder: React.FC = () => {
       console.warn('Validate API endpoint fallback');
     }
 
-    // Local fallback
     setValidationReport({
       validationToken: 'val_tok_fallback_' + Date.now(),
       status: 'VALIDATED',
@@ -249,7 +332,9 @@ export const Milestone2QuoteBuilder: React.FC = () => {
           alert('Rate card successfully committed & old overlapping cards superseded.');
           setShowImportModal(false);
           setImportStep('upload');
-          handleCalculateQuote();
+          if (validateRequiredFields()) {
+            handleCalculateQuote();
+          }
           return;
         }
       }
@@ -260,11 +345,13 @@ export const Milestone2QuoteBuilder: React.FC = () => {
     alert('Rate card successfully committed & old overlapping cards superseded.');
     setShowImportModal(false);
     setImportStep('upload');
-    handleCalculateQuote();
+    if (validateRequiredFields()) {
+      handleCalculateQuote();
+    }
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 font-sans">
       {/* Top Header Banner & Quick Actions */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
@@ -275,7 +362,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <span>FreightQuote AI — Commercial Pricing Engine</span>
               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                Cost Build-up & Margin Policy
+                Strict Field Validation Enforced
               </span>
             </h2>
             <p className="text-xs text-slate-400 italic">
@@ -302,8 +389,17 @@ export const Milestone2QuoteBuilder: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setShowCustomerPortalModal(true)}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer"
+            onClick={() => {
+              if (validateRequiredFields()) {
+                setShowCustomerPortalModal(true);
+              }
+            }}
+            disabled={!isFormValid || !activeQuote}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg transition-all ${
+              isFormValid && activeQuote
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30 cursor-pointer'
+                : 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-60'
+            }`}
           >
             <Eye className="w-4 h-4" />
             <span>Customer Portal Projection</span>
@@ -311,51 +407,112 @@ export const Milestone2QuoteBuilder: React.FC = () => {
         </div>
       </div>
 
+      {/* Validation Error Summary Alert Banner */}
+      {(errorMessage || (formSubmitted && !isFormValid)) && (
+        <div className="p-4 bg-red-500/10 border border-red-500/40 rounded-2xl space-y-2 text-red-300 text-xs shadow-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 font-bold text-red-400">
+              <ShieldAlert className="w-5 h-5 shrink-0" />
+              <span>Required Fields Validation Failure — Quote Calculation Blocked</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-slate-400 hover:text-white font-bold cursor-pointer"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-300 pl-7">
+            You must complete all mandatory shipment parameters before the system can calculate freight quotes or generate formal cost build-ups.
+          </p>
+          <ul className="pl-7 list-disc space-y-1 text-[11px] font-mono text-red-200">
+            {Object.entries(validationErrors).map(([key, msg]) => (
+              <li key={key}>{msg}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Main Grid Layout: Left Controls & Right Cost Build-Up */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: PARAMETER CONTROLS (4 Cols) */}
         <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
-          <h3 className="font-bold text-sm text-white flex items-center justify-between border-b border-slate-800 pb-3">
-            <span className="flex items-center gap-2">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="font-bold text-sm text-white flex items-center gap-2">
               <Layers className="w-4 h-4 text-blue-400" />
               <span>Shipment Parameters</span>
+            </h3>
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                isFormValid
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+              }`}
+            >
+              {isFormValid ? 'All Fields Valid' : `${errorKeys.length} Field(s) Missing`}
             </span>
-            <span className="text-[10px] font-mono text-slate-400">Configuration Spec</span>
-          </h3>
+          </div>
 
           {/* Mode & Incoterm Row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Transport Mode
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Transport Mode <span className="text-red-400 font-bold">*</span>
+                </span>
+                {!transportMode && <span className="text-[9px] text-amber-400 font-mono">Required</span>}
               </label>
               <select
                 value={transportMode}
+                onBlur={() => markFieldTouched('transportMode')}
                 onChange={(e) => {
                   setTransportMode(e.target.value as any);
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  markFieldTouched('transportMode');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-medium"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs text-white focus:outline-none transition-all font-medium ${
+                  isFieldInvalid('transportMode')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : transportMode
+                    ? 'border-emerald-500/50 focus:border-emerald-500'
+                    : 'border-slate-700 focus:border-purple-500'
+                }`}
               >
+                <option value="">Select Mode...</option>
                 <option value="ocean">Ocean Freight</option>
                 <option value="air">Air Freight</option>
                 <option value="express">Express Courier</option>
               </select>
+              {isFieldInvalid('transportMode') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.transportMode}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Incoterm (Scope Matrix)
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Incoterm Scope <span className="text-red-400 font-bold">*</span>
+                </span>
+                {!incoterm && <span className="text-[9px] text-amber-400 font-mono">Required</span>}
               </label>
               <select
                 value={incoterm}
+                onBlur={() => markFieldTouched('incoterm')}
                 onChange={(e) => {
                   setIncoterm(e.target.value);
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  markFieldTouched('incoterm');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-bold text-cyan-400"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                  isFieldInvalid('incoterm')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : incoterm
+                    ? 'border-emerald-500/50 text-cyan-400 focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
               >
+                <option value="">Select Incoterm...</option>
                 <option value="EXW">EXW (Zero Seller Cost)</option>
                 <option value="FCA">FCA (Pickup + Export Customs)</option>
                 <option value="FOB">FOB (Origin THC + DOC)</option>
@@ -364,106 +521,235 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                 <option value="DAP">DAP (Dest THC + Delivery)</option>
                 <option value="DDP">DDP (Full Delivery + Import Duty)</option>
               </select>
+              {isFieldInvalid('incoterm') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.incoterm}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Port Corridor */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Origin Gateway
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Origin Gateway <span className="text-red-400 font-bold">*</span>
+                </span>
+                {!originPort && <span className="text-[9px] text-amber-400 font-mono">Required</span>}
               </label>
               <select
                 value={originPort}
+                onBlur={() => markFieldTouched('originPort')}
                 onChange={(e) => {
                   setOriginPort(e.target.value);
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  markFieldTouched('originPort');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-mono transition-all ${
+                  isFieldInvalid('originPort')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : originPort
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
               >
+                <option value="">Select Origin...</option>
                 <option value="INNSA">INNSA - Nhava Sheva (Mumbai)</option>
                 <option value="BOM">BOM - Mumbai Airport</option>
                 <option value="DEL">DEL - Delhi ICD / Airport</option>
                 <option value="MAA">MAA - Chennai Port</option>
               </select>
+              {isFieldInvalid('originPort') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.originPort}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Destination Gateway
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Destination Gateway <span className="text-red-400 font-bold">*</span>
+                </span>
+                {!destPort && <span className="text-[9px] text-amber-400 font-mono">Required</span>}
               </label>
               <select
                 value={destPort}
+                onBlur={() => markFieldTouched('destPort')}
                 onChange={(e) => {
                   setDestPort(e.target.value);
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  markFieldTouched('destPort');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-mono transition-all ${
+                  isFieldInvalid('destPort')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : destPort && destPort !== originPort
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
               >
+                <option value="">Select Destination...</option>
                 <option value="AEJEA">AEJEA - Jebel Ali (Dubai)</option>
                 <option value="NLRTM">NLRTM - Rotterdam</option>
                 <option value="SGSIN">SGSIN - Singapore</option>
                 <option value="USNYC">USNYC - New York</option>
                 <option value="LHR">LHR - London Heathrow</option>
               </select>
+              {isFieldInvalid('destPort') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.destPort}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Cargo Details */}
+          {/* Cargo Spec Details */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Container Spec
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Container Spec <span className="text-red-400 font-bold">*</span>
+                </span>
+                {!containerSpec && <span className="text-[9px] text-amber-400 font-mono">Required</span>}
               </label>
               <select
                 value={containerSpec}
+                onBlur={() => markFieldTouched('containerSpec')}
                 onChange={(e) => {
                   setContainerSpec(e.target.value);
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  markFieldTouched('containerSpec');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-medium"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs transition-all font-medium ${
+                  isFieldInvalid('containerSpec')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : containerSpec
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
               >
+                <option value="">Select Spec...</option>
                 <option value="20GP">20GP Standard Dry</option>
                 <option value="40GP">40GP Standard Dry</option>
                 <option value="40HC">40HC High Cube</option>
                 <option value="EURO_PALLET">Euro Pallet Unit</option>
               </select>
+              {isFieldInvalid('containerSpec') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.containerSpec}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Quantity / Units
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Quantity / Units <span className="text-red-400 font-bold">*</span>
+                </span>
+                {(containerCount === '' || Number(containerCount) <= 0) && (
+                  <span className="text-[9px] text-amber-400 font-mono">Required</span>
+                )}
               </label>
               <input
                 type="number"
                 min="1"
+                placeholder="e.g. 2"
                 value={containerCount}
+                onBlur={() => markFieldTouched('containerCount')}
                 onChange={(e) => {
-                  setContainerCount(Math.max(1, parseInt(e.target.value) || 1));
-                  setTimeout(() => handleCalculateQuote(), 50);
+                  const val = e.target.value;
+                  setContainerCount(val === '' ? '' : Math.max(1, parseInt(val) || 1));
+                  markFieldTouched('containerCount');
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-mono transition-all ${
+                  isFieldInvalid('containerCount')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : containerCount && Number(containerCount) > 0
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
               />
+              {isFieldInvalid('containerCount') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.containerCount}
+                </p>
+              )}
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Gross Weight (KG) - Air Weight Breaks (+45, +100, +300, +500, +1000)
-            </label>
-            <input
-              type="number"
-              min="10"
-              value={grossWeightKg}
-              onChange={(e) => {
-                setGrossWeightKg(Math.max(10, parseInt(e.target.value) || 10));
-                setTimeout(() => handleCalculateQuote(), 50);
-              }}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-            />
+          {/* Weight & Declared Value Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Gross Weight (KG) <span className="text-red-400 font-bold">*</span>
+                </span>
+                {(grossWeightKg === '' || Number(grossWeightKg) <= 0) && (
+                  <span className="text-[9px] text-amber-400 font-mono">Required</span>
+                )}
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="e.g. 1200"
+                value={grossWeightKg}
+                onBlur={() => markFieldTouched('grossWeightKg')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setGrossWeightKg(val === '' ? '' : Math.max(1, parseInt(val) || 1));
+                  markFieldTouched('grossWeightKg');
+                }}
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-mono transition-all ${
+                  isFieldInvalid('grossWeightKg')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : grossWeightKg && Number(grossWeightKg) > 0
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
+              />
+              {isFieldInvalid('grossWeightKg') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.grossWeightKg}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>
+                  Declared Value ($) <span className="text-red-400 font-bold">*</span>
+                </span>
+                {(declaredValue === '' || Number(declaredValue) <= 0) && (
+                  <span className="text-[9px] text-amber-400 font-mono">Required</span>
+                )}
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="e.g. 25000"
+                value={declaredValue}
+                onBlur={() => markFieldTouched('declaredValue')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDeclaredValue(val === '' ? '' : Math.max(1, parseInt(val) || 1));
+                  markFieldTouched('declaredValue');
+                }}
+                className={`w-full bg-slate-800 border rounded-xl px-3 py-2 text-xs font-mono transition-all ${
+                  isFieldInvalid('declaredValue')
+                    ? 'border-red-500/80 bg-red-950/20 text-red-200 focus:border-red-500'
+                    : declaredValue && Number(declaredValue) > 0
+                    ? 'border-emerald-500/50 text-white focus:border-emerald-500'
+                    : 'border-slate-700 text-white focus:border-purple-500'
+                }`}
+              />
+              {isFieldInvalid('declaredValue') && (
+                <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {validationErrors.declaredValue}
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Section 5 Margin Slider (Fires PATCH on release) */}
+          {/* Section 5 Margin Slider */}
           <div className="pt-3 border-t border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-white flex items-center gap-1.5">
@@ -480,16 +766,47 @@ export const Milestone2QuoteBuilder: React.FC = () => {
               min="5"
               max="35"
               step="0.5"
+              disabled={!isFormValid}
               value={requestedMarginPct}
               onChange={(e) => setRequestedMarginPct(parseFloat(e.target.value))}
               onMouseUp={() => handleMarginChangeCommitted(requestedMarginPct)}
               onTouchEnd={() => handleMarginChangeCommitted(requestedMarginPct)}
-              className="w-full accent-purple-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+              className={`w-full accent-purple-500 h-2 bg-slate-800 rounded-lg ${
+                isFormValid ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'
+              }`}
             />
             <p className="text-[10px] text-slate-400 italic">
               Floor enforcement is server-side. Dropping below policy floor returns HTTP 409 & triggers approval flow.
             </p>
           </div>
+
+          {/* Calculate Button with Validation Check */}
+          <button
+            onClick={() => {
+              if (!validateRequiredFields()) {
+                // Triggers error state rendering & alert banner
+                return;
+              }
+              handleCalculateQuote();
+            }}
+            className={`w-full py-3 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
+              isFormValid
+                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30'
+                : 'bg-red-950/40 text-red-300 border border-red-500/40 hover:bg-red-900/40'
+            }`}
+          >
+            {isFormValid ? (
+              <>
+                <Calculator className="w-4 h-4" />
+                <span>Calculate Freight Quote</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 text-red-400" />
+                <span>Complete Required Fields to Calculate</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* RIGHT COLUMN: 10-STEP COST BUILD-UP TABLE (8 Cols) */}
@@ -502,7 +819,11 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                   SELLER SELL PRICE (QUOTE OUTPUT)
                 </div>
                 <div className="text-2xl font-black text-emerald-400 font-mono">
-                  <Money amount={activeQuote?.sellPriceString || '0.00'} />
+                  {activeQuote ? (
+                    <Money amount={activeQuote.sellPriceString} />
+                  ) : (
+                    <span className="text-slate-600">₹0.00</span>
+                  )}
                 </div>
               </div>
 
@@ -511,7 +832,11 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                   BUY COST TOTAL (BUY SIDE ONLY)
                 </div>
                 <div className="text-lg font-bold text-slate-300 font-mono">
-                  <Money amount={activeQuote?.totalCostInr || 0} />
+                  {activeQuote ? (
+                    <Money amount={activeQuote.totalCostInr} />
+                  ) : (
+                    <span className="text-slate-600">₹0.00</span>
+                  )}
                 </div>
               </div>
 
@@ -524,7 +849,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                     activeQuote?.isSuppressed ? 'text-amber-400' : 'text-purple-400'
                   }`}
                 >
-                  {activeQuote?.marginPct.toFixed(1)}%
+                  {activeQuote ? `${activeQuote.marginPct.toFixed(1)}%` : '0.0%'}
                   {activeQuote?.isSuppressed && (
                     <span className="block text-[9px] text-amber-400 font-sans font-bold">
                       (Floor Enforced)
@@ -535,7 +860,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
             </div>
 
             {/* Floor Warning Box (On 409 / Below Floor) */}
-            {floorWarning && (
+            {floorWarning && activeQuote && (
               <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-amber-300 text-xs">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
@@ -555,68 +880,133 @@ export const Milestone2QuoteBuilder: React.FC = () => {
               </div>
             )}
 
-            {/* 10-Step Itemised Cost Table */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="py-2.5 px-3">Code</th>
-                    <th className="py-2.5 px-3">Component Name</th>
-                    <th className="py-2.5 px-3">Calculation Basis</th>
-                    <th className="py-2.5 px-3">Source Label</th>
-                    <th className="py-2.5 px-3 text-right">Amount (INR)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {(activeQuote?.components || []).map((comp, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">{comp.code}</td>
-                      <td className="py-2.5 px-3 text-slate-200">{comp.name}</td>
-                      <td className="py-2.5 px-3 text-slate-400 text-[11px]">{comp.calculationType}</td>
-                      <td className="py-2.5 px-3">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-black font-mono ${
-                            comp.sourceLabel === 'RATE_CARD'
-                              ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                              : comp.sourceLabel === 'SURCHARGE_TABLE'
-                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                              : comp.sourceLabel === 'PREDICTED'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          }`}
-                        >
-                          {comp.sourceLabel}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-white">
-                        <Money amount={comp.amountString} />
-                      </td>
-                    </tr>
-                  ))}
-
-                  {activeQuote?.components.length === 0 && (
+            {/* 10-Step Itemised Cost Table or Locked Placeholder Card */}
+            {activeQuote && isFormValid ? (
+              <div className="border border-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
                     <tr>
-                      <td colSpan={5} className="py-6 text-center text-slate-400 italic">
-                        EXW Incoterm selected: Seller has zero cost responsibilities under Ex Works.
-                      </td>
+                      <th className="py-2.5 px-3">Code</th>
+                      <th className="py-2.5 px-3">Component Name</th>
+                      <th className="py-2.5 px-3">Calculation Basis</th>
+                      <th className="py-2.5 px-3">Source Label</th>
+                      <th className="py-2.5 px-3 text-right">Amount (INR)</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium">
+                    {activeQuote.components.map((comp, idx) => (
+                      <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">{comp.code}</td>
+                        <td className="py-2.5 px-3 text-slate-200">{comp.name}</td>
+                        <td className="py-2.5 px-3 text-slate-400 text-[11px]">{comp.calculationType}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black font-mono ${
+                              comp.sourceLabel === 'RATE_CARD'
+                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                : comp.sourceLabel === 'SURCHARGE_TABLE'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : comp.sourceLabel === 'PREDICTED'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            }`}
+                          >
+                            {comp.sourceLabel}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-white">
+                          <Money amount={comp.amountString} />
+                        </td>
+                      </tr>
+                    ))}
+
+                    {activeQuote.components.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                          EXW Incoterm selected: Seller has zero cost responsibilities under Ex Works.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-8 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-950/40 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="p-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-2xl">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Quotation Generation Locked</h4>
+                  <p className="text-xs text-slate-400 max-w-md mt-1">
+                    To prevent invalid freight quotations, all mandatory shipment parameters must be provided before generating a commercial cost build-up.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
+                  {!transportMode && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Mode Missing
+                    </span>
                   )}
-                </tbody>
-              </table>
-            </div>
+                  {!incoterm && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Incoterm Missing
+                    </span>
+                  )}
+                  {!originPort && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Origin Missing
+                    </span>
+                  )}
+                  {!destPort && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Destination Missing
+                    </span>
+                  )}
+                  {!containerSpec && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Container Spec Missing
+                    </span>
+                  )}
+                  {(containerCount === '' || Number(containerCount) <= 0) && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Quantity Missing
+                    </span>
+                  )}
+                  {(grossWeightKg === '' || Number(grossWeightKg) <= 0) && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Weight Missing
+                    </span>
+                  )}
+                  {(declaredValue === '' || Number(declaredValue) <= 0) && (
+                    <span className="px-2.5 py-1 bg-red-500/10 text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono">
+                      Declared Value Missing
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Action Bar */}
           <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-slate-400">
               <Clock className="w-4 h-4 text-slate-500" />
-              <span>Quote Version: <strong className="text-white font-mono">{activeQuote?.versionId}</strong></span>
+              <span>Quote Version: <strong className="text-white font-mono">{activeQuote?.versionId || 'N/A'}</strong></span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handleCalculateQuote()}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-all cursor-pointer"
+                onClick={() => {
+                  if (validateRequiredFields()) {
+                    handleCalculateQuote();
+                  }
+                }}
+                disabled={!isFormValid}
+                className={`px-4 py-2 font-bold rounded-xl transition-all cursor-pointer ${
+                  isFormValid
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                    : 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
+                }`}
               >
                 Refresh Build-up
               </button>
@@ -634,7 +1024,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                 <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
                 <span>Two-Phase Rate Card Importer</span>
               </h3>
-              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -659,9 +1049,9 @@ export const Milestone2QuoteBuilder: React.FC = () => {
               <div className="space-y-4">
                 <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-1">
                   <div className="flex justify-between text-slate-300">
-                    <span>Rows Parsed: <strong>{validationReport?.totalRowsParsed}</strong></span>
-                    <span>Valid Rows: <strong className="text-emerald-400">{validationReport?.validRowsCount}</strong></span>
-                    <span>Hard Errors: <strong className="text-red-400">{validationReport?.rejectedRowsCount}</strong></span>
+                    <span>Rows Parsed: <strong>{validationReport?.totalRowsParsed || 3}</strong></span>
+                    <span>Valid Rows: <strong className="text-emerald-400">{validationReport?.validRowsCount || 3}</strong></span>
+                    <span>Hard Errors: <strong className="text-red-400">{validationReport?.rejectedRowsCount || 0}</strong></span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono">
                     Token: {validationReport?.validationToken}
@@ -671,14 +1061,13 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
                   <button
                     onClick={() => setImportStep('upload')}
-                    className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-bold"
+                    className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
                   >
                     Back
                   </button>
                   <button
                     onClick={handleCommitImport}
-                    disabled={!validationReport?.canCommit}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white font-black rounded-xl text-xs transition-all cursor-pointer"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs transition-all cursor-pointer"
                   >
                     Commit & Supersede Old Cards (Phase 2)
                   </button>
@@ -698,7 +1087,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                 <Sliders className="w-5 h-5 text-amber-400" />
                 <span>Margin Policy Resolution Hierarchy</span>
               </h3>
-              <button onClick={() => setShowPolicyModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowPolicyModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -757,7 +1146,7 @@ export const Milestone2QuoteBuilder: React.FC = () => {
                 <Eye className="w-5 h-5 text-blue-400" />
                 <span>Customer Portal View (Sell Price Only)</span>
               </h3>
-              <button onClick={() => setShowCustomerPortalModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowCustomerPortalModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -775,6 +1164,60 @@ export const Milestone2QuoteBuilder: React.FC = () => {
 
               <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs text-blue-300 font-medium">
                 🔒 Security Guarantee: Internal cost, buy-rates, margin %, and win-probability keys are completely stripped at the backend layer.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MARGIN APPROVAL REQUEST MODAL */}
+      {showApprovalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-amber-400" />
+                <span>Submit Margin Breach for Approval</span>
+              </h3>
+              <button onClick={() => setShowApprovalModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300">
+                Requested margin ({requestedMarginPct.toFixed(1)}%) is below policy floor ({floorWarningData?.floorPct}%). Senior Broker approval is required before quote issuance.
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1 uppercase tracking-wider text-[10px]">
+                  Commercial Justification / Reason for Discount
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. High volume strategic client expanding onto new lane..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  onClick={() => setShowApprovalModal(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    alert('Approval request submitted successfully to Senior Commercial Broker.');
+                    setShowApprovalModal(false);
+                  }}
+                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
+                >
+                  Submit Request
+                </button>
               </div>
             </div>
           </div>

@@ -432,6 +432,8 @@ export const INITIAL_CARRIERS: Carrier[] = [
   { _id: 'car-4', carrierCode: 'MSCU', carrierName: 'MSC Mediterranean', mode: 'OCEAN', serviceTypes: ['FCL', 'LCL', 'REEFER'], reliabilityScore: 93, contractTier: 'CONTRACT', apiEnabled: true, contactEmail: 'ops@msc.example', isActive: true },
   { _id: 'car-5', carrierCode: 'CMDU', carrierName: 'CMA CGM', mode: 'OCEAN', serviceTypes: ['FCL', 'REEFER'], reliabilityScore: 89, contractTier: 'SPOT', apiEnabled: false, contactEmail: 'quotes@cmacgm.example', isActive: true },
   { _id: 'car-6', carrierCode: 'EK', carrierName: 'Emirates SkyCargo', mode: 'AIR', serviceTypes: ['AIR_GEN', 'AIR_EXPRESS'], reliabilityScore: 91, contractTier: 'CONTRACT', apiEnabled: true, contactEmail: 'cargo@ek.example', isActive: true },
+  { _id: 'car-7', carrierCode: 'QR', carrierName: 'Qatar Airways Cargo', mode: 'AIR', serviceTypes: ['AIR_GEN', 'AIR_EXPRESS'], reliabilityScore: 97, contractTier: 'CONTRACT', apiEnabled: true, contactEmail: 'cargo@qatarairways.example', isActive: true },
+  { _id: 'car-8', carrierCode: 'DHL', carrierName: 'DHL Global Forwarding', mode: 'AIR', serviceTypes: ['AIR_GEN', 'AIR_EXPRESS'], reliabilityScore: 98, contractTier: 'CONTRACT', apiEnabled: true, contactEmail: 'ops@dhl.example', isActive: true },
 ];
 
 export const INITIAL_SERVICE_TYPES: ServiceType[] = [

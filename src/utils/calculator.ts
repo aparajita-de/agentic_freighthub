@@ -17,10 +17,11 @@ const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
   GBP: '£',
 };
 
-export function formatCurrency(amount: number, currency: CurrencyCode = 'INR'): string {
+export function formatCurrency(amount: number | undefined | null, currency: CurrencyCode = 'INR'): string {
   const symbol = CURRENCY_SYMBOLS[currency] || '₹';
+  const num = amount !== undefined && amount !== null && !isNaN(Number(amount)) ? Number(amount) : 0;
   const rate = CURRENCY_RATES[currency] || 1;
-  const converted = amount * rate;
+  const converted = num * rate;
 
   if (currency === 'INR') {
     return `${symbol} ${Math.round(converted).toLocaleString('en-IN')}`;

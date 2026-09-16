@@ -126,9 +126,10 @@ export const userService = {
         if (Array.isArray(parsed) && parsed.length > 0) {
           userList = parsed.map((u: any) => {
             let normalizedRole: UserRole = u.role;
-            if (u.role === 'shipper') normalizedRole = 'user';
-            if (u.role === 'broker') normalizedRole = 'business';
-            if (u.role === 'customs-officer') normalizedRole = 'customer-officer';
+            // Normalize old role names to new ones
+            if (u.role === 'shipper' || u.role === 'user') normalizedRole = 'customer';
+            if (u.role === 'broker' || u.role === 'business') normalizedRole = 'freight-agent';
+            if (u.role === 'customer-officer') normalizedRole = 'customs-officer';
             return {
               ...u,
               id: u.id || `USR-${String(Date.now()).slice(-6)}`,
@@ -248,17 +249,17 @@ export const userService = {
   },
 
   registerUser(user: Omit<UserAccount, 'id' | 'createdAt'>): { success: boolean; user?: UserAccount; error?: string } {
-    // Only 'user' / 'shipper' role is permitted for self-registration
-    // All other roles (business, freight-agent, admin, customer-officer) MUST be enrolled via the Admin Portal
-    if (user.role !== 'user' && user.role !== 'shipper') {
+    // Only 'customer' role is permitted for self-registration
+    // All other roles (freight-agent, customs-officer, admin) MUST be enrolled via the Admin Portal
+    if (user.role !== 'customer') {
       return {
         success: false,
-        error: 'Self-registration is only allowed for User accounts. All administrative, business, agent, and officer accounts must be created and verified via the Admin Portal.',
+        error: 'Self-registration is only allowed for Customer accounts. All freight agent, customs officer, and admin accounts must be created and verified via the Admin Portal.',
       };
     }
     return this.addUser({
       ...user,
-      role: 'user',
+      role: 'customer',
       generatedBy: 'Self-Registered',
     });
   },
@@ -396,18 +397,9 @@ export const userService = {
     const users = this.getUsers();
     const term = (emailOrUsername || '').trim().toLowerCase();
 
-    // Map role aliases if needed (user -> shipper, broker -> business/freight-agent, customs-officer -> customer-officer)
     const matchedUser = users.find((u) => {
-      const roleMatches =
-        u.role === role ||
-        (role === 'shipper' && u.role === 'user') ||
-        (role === 'user' && u.role === 'shipper') ||
-        (role === 'business' && u.role === 'broker') ||
-        (role === 'freight-agent' && u.role === 'broker') ||
-        (role === 'customer-officer' && u.role === 'customs-officer') ||
-        (role === 'customs-officer' && u.role === 'customer-officer');
-
-      if (!roleMatches) return false;
+      // Direct role match only
+      if (u.role !== role) return false;
       const emailMatch = (u.email || '').toLowerCase() === term;
       const usernameMatch = (u.username || '').toLowerCase() === term;
       if (role === 'admin' && (term === 'admin' || term === 'admin.root' || term === 'admin@freighthub.com')) {
@@ -417,7 +409,7 @@ export const userService = {
     });
 
     if (!matchedUser) {
-      const displayRoleLabel = role === 'customer-officer' || role === 'customs-officer' ? 'CUSTOMER OFFICER' : role.toUpperCase();
+      const displayRoleLabel = role.toUpperCase();
       return {
         success: false,
         error: `No registered ${displayRoleLabel} account found with credentials "${emailOrUsername}". Please ensure this account has been verified and provisioned from the Admin Portal.`,
@@ -470,20 +462,13 @@ export const userService = {
       username = `admin.ops${randomDigits}`;
       email = `ops.${randomDigits}@freighthub.com`;
       company = company || 'FreightHub Global Headquarters';
-    } else if (role === 'customer-officer' || role === 'customs-officer') {
+    } else if (role === 'customs-officer') {
       const officerNames = ['Rajesh Varma', 'Anand Swaminathan', 'Sunita Deshmukh', 'Vikramaditya Bose', 'Kavita Menon'];
       fullName = fullName || officerNames[Math.floor(Math.random() * officerNames.length)];
       const prefix = fullName.toLowerCase().replace(/[^a-z0-9]/g, '.');
       username = `${prefix}.officer${Math.floor(Math.random() * 90 + 10)}`;
       email = `${prefix}${randomDigits}@freighthub.in`;
       company = company || 'Customer Operations & Compliance Desk';
-    } else if (role === 'business') {
-      const bizNames = ['Rohit Sharma', 'Arun Verma', 'Kavita Sundaram', 'Vikram Patel', 'Siddharth Roy'];
-      fullName = fullName || bizNames[Math.floor(Math.random() * bizNames.length)];
-      const prefix = fullName.toLowerCase().replace(/[^a-z0-9]/g, '.');
-      username = `${prefix}.biz${Math.floor(Math.random() * 90 + 10)}`;
-      email = `${prefix}${randomDigits}@freighthub.in`;
-      company = company || 'Apex Commercial Pricing Desk';
     } else if (role === 'freight-agent') {
       const agentNames = ['Priya Nair', 'Karan Singh', 'Sunita Rao', 'Rajesh Kumar', 'Deepak Joshi'];
       fullName = fullName || agentNames[Math.floor(Math.random() * agentNames.length)];
@@ -492,8 +477,8 @@ export const userService = {
       email = `${prefix}${randomDigits}@freighthub.in`;
       company = company || 'FreightHub Field Dispatch Desk';
     } else {
-      const shipperNames = ['Aparajita De', 'Michael Chang', 'Rajesh Mehta', 'Ananya Gupta', 'Rohan Das'];
-      fullName = fullName || shipperNames[Math.floor(Math.random() * shipperNames.length)];
+      const customerNames = ['Aparajita De', 'Michael Chang', 'Rajesh Mehta', 'Ananya Gupta', 'Rohan Das'];
+      fullName = fullName || customerNames[Math.floor(Math.random() * customerNames.length)];
       const prefix = fullName.toLowerCase().replace(/[^a-z0-9]/g, '.');
       username = `${prefix}${Math.floor(Math.random() * 900 + 100)}`;
       email = `${prefix}${randomDigits}@oceanfreight.in`;
@@ -507,5 +492,27 @@ export const userService = {
       password: generatedPass,
       companyName: company,
     };
+  },
+
+  isDeactivated(emailOrUsername: string): boolean {
+    if (!emailOrUsername) return false;
+    const clean = emailOrUsername.trim().toLowerCase();
+    const user = this.getUserByEmailOrUsername(clean);
+    if (!user) return false;
+    return user.status === 'suspended' || user.status === 'pending_deletion';
+  },
+
+  canUserAccessQuote(userEmail: string, userRole: string, quoteShipperEmail?: string): { allowed: boolean; reason?: string } {
+    if (!userEmail) return { allowed: false, reason: 'Authentication required' };
+    if (['admin', 'freight-agent', 'customs-officer'].includes(userRole)) {
+      return { allowed: true };
+    }
+    const cleanUser = userEmail.trim().toLowerCase();
+    const cleanShipper = (quoteShipperEmail || '').trim().toLowerCase();
+
+    if (!cleanShipper || cleanUser === cleanShipper || cleanShipper.includes(cleanUser.split('@')[0])) {
+      return { allowed: true };
+    }
+    return { allowed: false, reason: `Access Denied: You do not have permission to view quotes belonging to ${quoteShipperEmail || 'another customer'}.` };
   },
 };

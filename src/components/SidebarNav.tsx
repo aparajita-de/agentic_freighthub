@@ -1,13 +1,22 @@
 import React from 'react';
-import { Package, Calculator, Compass, Radar, FileText } from 'lucide-react';
+import { Package, Calculator, Compass, Radar, FileText, ShieldCheck, Building, Bell } from 'lucide-react';
 import { HelpdeskWidget } from './HelpdeskWidget';
 
-export type UserWorkspaceView = 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations';
+export type UserWorkspaceView =
+  | 'dashboard'
+  | 'calculation'
+  | 'selected-quotes'
+  | 'notifications'
+  | 'routes'
+  | 'tracking'
+  | 'quotations'
+  | 'test-scenarios';
 
 interface SidebarNavProps {
   activeView: UserWorkspaceView;
   onSelectView: (view: UserWorkspaceView) => void;
   quotationCount: number;
+  unreadNotificationsCount?: number;
 }
 
 interface NavItem {
@@ -16,19 +25,30 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   hasDot?: boolean;
   badge?: number | string;
+  badgeColor?: string;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeView,
   onSelectView,
   quotationCount,
+  unreadNotificationsCount = 0,
 }) => {
   const navItems: NavItem[] = [
     { id: 'calculation', label: 'Calculation', icon: Calculator, hasDot: true },
+    { id: 'selected-quotes', label: 'Selected Quotes', icon: Building, badge: quotationCount },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: Bell,
+      badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
+      badgeColor: 'bg-red-500 text-white',
+    },
     { id: 'dashboard', label: 'Shipment', icon: Package },
     { id: 'routes', label: 'Routes', icon: Compass },
     { id: 'tracking', label: 'Tracking', icon: Radar },
-    { id: 'quotations', label: 'Quotations', icon: FileText, badge: quotationCount },
+    { id: 'quotations', label: 'Quotations', icon: FileText },
+    { id: 'test-scenarios', label: 'Core Test Suite', icon: ShieldCheck },
   ];
 
   return (
@@ -66,7 +86,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 {item.badge !== undefined && (
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                      isActive ? 'bg-white text-blue-600' : 'bg-slate-100 text-slate-600'
+                      item.badgeColor
+                        ? item.badgeColor
+                        : isActive
+                        ? 'bg-white text-blue-600'
+                        : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {item.badge}

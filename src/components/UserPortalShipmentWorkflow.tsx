@@ -552,7 +552,7 @@ export const UserPortalShipmentWorkflow: React.FC<UserPortalShipmentWorkflowProp
           chargeBasis: `${incoterm} Commercial Freight (Rule + ML Rate Lock)`,
           cargoCountSummary: `${quantity} × ${containerSpec}`,
           totalWeightKg: grossWeightKg,
-          estimatedDistanceNmOrKm: `${selectedRoute ? selectedRoute.nauticalMiles || 1650 : 1650} NM`,
+          estimatedDistanceNmOrKm: '1650 NM',
           estimatedTransitDays: transitDaysStr,
           estimatedArrivalDate: arrivalDateStr
         },

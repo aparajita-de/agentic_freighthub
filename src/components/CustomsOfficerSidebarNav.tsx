@@ -25,9 +25,14 @@ import {
 } from 'lucide-react';
 
 export type CustomsOfficerTab =
+  | 'overview'
   | 'case-console'
   | 'hs-tariffs'
   | 'rag-regulations'
+  | 'risk-engine'
+  | 'weather-radar'
+  | 'ml-pricing'
+  | 'tracking'
   | 'signoff-audit';
 
 interface CustomsOfficerSidebarNavProps {

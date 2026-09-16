@@ -3,26 +3,18 @@ import {
   Rocket,
   ShieldAlert,
   UserCheck,
-  Briefcase,
   Lock,
   Mail,
   User,
   AtSign,
   ArrowRight,
-  Zap,
   Calculator,
-  Globe,
   CheckCircle2,
   Info,
-  AlertTriangle,
   Eye,
   EyeOff,
   Anchor,
-  TrendingUp,
   CloudRain,
-  BookOpen,
-  Sparkles,
-  FileCheck2,
   Cpu
 } from 'lucide-react';
 import { UserRole } from '../types';
@@ -32,83 +24,15 @@ interface SignInPageProps {
   onLoginSuccess: (email: string, role: UserRole, fullName?: string, username?: string) => void;
 }
 
-const DEMO_PRESETS: {
-  role: UserRole;
-  title: string;
-  badge: string;
-  email: string;
-  pass: string;
-  name: string;
-  color: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-}[] = [
-  {
-    role: 'user',
-    title: 'User / Shipper',
-    badge: 'CUSTOMER',
-    email: 'aparajita@freighthub.in',
-    pass: 'user123',
-    name: 'Aparajita De',
-    color: 'from-blue-600 to-blue-800 text-blue-100 border-blue-500/40',
-    icon: Calculator,
-    description: 'Multi-modal instant rate calculation, tracking & quote builder',
-  },
-  {
-    role: 'customer-officer',
-    title: 'Customer Officer',
-    badge: 'OFFICER',
-    email: 'customer.officer@freighthub.in',
-    pass: 'officer123',
-    name: 'Rajesh Varma (Customer Officer)',
-    color: 'from-amber-600 to-amber-800 text-amber-100 border-amber-500/40',
-    icon: UserCheck,
-    description: 'Customer compliance audit, regulation validation & quote sign-offs',
-  },
-  {
-    role: 'business',
-    title: 'Business Commercial',
-    badge: 'COMMERCIAL',
-    email: 'business@freighthub.in',
-    pass: 'business123',
-    name: 'Rohit Sharma (Commercial Lead)',
-    color: 'from-indigo-600 to-indigo-800 text-indigo-100 border-indigo-500/40',
-    icon: TrendingUp,
-    description: 'Margin calculator, rule vs ML price comparison & quote review',
-  },
-  {
-    role: 'freight-agent',
-    title: 'Freight Agent',
-    badge: 'DISPATCH',
-    email: 'agent@freighthub.in',
-    pass: 'agent123',
-    name: 'Priya Nair (Field Agent)',
-    color: 'from-teal-600 to-teal-800 text-teal-100 border-teal-500/40',
-    icon: Anchor,
-    description: 'Port operations, carrier bidding & real-time route optimization',
-  },
-  {
-    role: 'admin',
-    title: 'System Admin',
-    badge: 'ADMIN',
-    email: 'admin@freighthub.com',
-    pass: 'admin1234',
-    name: 'System Administrator',
-    color: 'from-purple-600 to-purple-800 text-purple-100 border-purple-500/40',
-    icon: ShieldAlert,
-    description: 'Full master data, risk intelligence, ML price engine & user management',
-  },
-];
-
 export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
-  const [role, setRole] = useState<UserRole>('user');
+  const [role, setRole] = useState<UserRole>('customer');
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [emailOrUsername, setEmailOrUsername] = useState('aparajita@freighthub.in');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('user123');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -121,13 +45,9 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
     setRole(selectedRole);
     setError(null);
     setSuccessMessage(null);
-
-    // Auto-populate default credentials for the selected portal role
-    const preset = DEMO_PRESETS.find((p) => p.role === selectedRole);
-    if (preset && !isRegistering) {
-      setEmailOrUsername(preset.email);
-      setPassword(preset.pass);
-    }
+    // Clear credentials when switching roles
+    setEmailOrUsername('');
+    setPassword('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -136,8 +56,8 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
     setSuccessMessage(null);
 
     if (isRegistering) {
-      if (role !== 'shipper' && role !== 'user') {
-        setError(`Self-registration is restricted. Every account except User must be created and verified from the Admin Portal.`);
+      if (role !== 'customer') {
+        setError(`Self-registration is restricted. Only Customer accounts can be self-registered.`);
         return;
       }
 
@@ -151,7 +71,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
         username: username.trim(),
         email: email.trim(),
         password: password.trim(),
-        role: 'user',
+        role: 'customer',
         status: 'active',
         generatedBy: 'Self-Registered',
       });
@@ -161,7 +81,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
         return;
       }
 
-      setSuccessMessage(`User Account @${res.user?.username} created successfully! Signing in...`);
+      setSuccessMessage(`Customer Account @${res.user?.username} created successfully! Signing in...`);
       setTimeout(() => {
         onLoginSuccess(res.user!.email, res.user!.role, res.user!.fullName, res.user!.username);
       }, 500);
@@ -185,14 +105,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
   };
 
   const roleName =
-    role === 'shipper' || role === 'user'
-      ? 'User / Shipper'
-      : role === 'customer-officer' || role === 'customs-officer'
-      ? 'Customer Officer'
-      : role === 'business'
-      ? 'Business Commercial'
+    role === 'customer'
+      ? 'Customer'
+      : role === 'customs-officer'
+      ? 'Customs Officer'
       : role === 'freight-agent'
-      ? 'Freight Field Agent'
+      ? 'Freight Agent'
       : 'System Admin';
 
   return (
@@ -301,55 +219,27 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
-            {/* 5-WAY PORTAL SWITCHER: USER FIRST, ADMIN LAST */}
+            {/* 4-WAY PORTAL SWITCHER: CUSTOMER, FREIGHT AGENT, CUSTOMS OFFICER, ADMIN */}
             <div className="mb-4">
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
                 SELECT PORTAL ROLE:
               </label>
-              <div className="bg-slate-100 p-1.5 rounded-2xl grid grid-cols-3 sm:grid-cols-5 gap-1.5 border border-slate-200">
-                {/* 1. User / Shipper (FIRST) */}
+              <div className="bg-slate-100 p-1.5 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-1.5 border border-slate-200">
+                {/* 1. Customer (FIRST) */}
                 <button
                   type="button"
-                  onClick={() => handleRoleChange('user')}
+                  onClick={() => handleRoleChange('customer')}
                   className={`py-2 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    role === 'shipper' || role === 'user'
+                    role === 'customer'
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'text-slate-600 hover:text-slate-950'
                   }`}
                 >
                   <Calculator className="w-4 h-4" />
-                  <span className="truncate text-[11px]">User</span>
+                  <span className="truncate text-[11px]">Customer</span>
                 </button>
 
-                {/* 2. Customer Officer */}
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('customer-officer')}
-                  className={`py-2 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    role === 'customer-officer' || role === 'customs-officer'
-                      ? 'bg-amber-500 text-slate-950 shadow-md border border-amber-600/30'
-                      : 'text-slate-600 hover:text-slate-950'
-                  }`}
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span className="truncate text-[11px]">Customer Officer</span>
-                </button>
-
-                {/* 3. Business Commercial */}
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('business')}
-                  className={`py-2 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    role === 'business'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-slate-600 hover:text-slate-950'
-                  }`}
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="truncate text-[11px]">Business</span>
-                </button>
-
-                {/* 4. Freight Agent */}
+                {/* 2. Freight Agent */}
                 <button
                   type="button"
                   onClick={() => handleRoleChange('freight-agent')}
@@ -360,10 +250,24 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
                   }`}
                 >
                   <Anchor className="w-4 h-4" />
-                  <span className="truncate text-[11px]">Agent</span>
+                  <span className="truncate text-[11px]">Freight Agent</span>
                 </button>
 
-                {/* 5. System Admin (LAST) */}
+                {/* 3. Customs Officer */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('customs-officer')}
+                  className={`py-2 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    role === 'customs-officer'
+                      ? 'bg-amber-500 text-slate-950 shadow-md border border-amber-600/30'
+                      : 'text-slate-600 hover:text-slate-950'
+                  }`}
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span className="truncate text-[11px]">Customs Officer</span>
+                </button>
+
+                {/* 4. System Admin (LAST) */}
                 <button
                   type="button"
                   onClick={() => handleRoleChange('admin')}
@@ -450,7 +354,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g. Aparajita De"
+                        placeholder="Enter your full name"
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none font-medium"
                         required
                       />
@@ -467,7 +371,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
-                        placeholder="e.g. aparajita"
+                        placeholder="Choose a username"
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none font-mono"
                         required
                       />
@@ -484,7 +388,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="e.g. aparajita@freighthub.in"
+                        placeholder="Enter your email"
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none font-mono"
                         required
                       />
@@ -520,12 +424,10 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 className={`w-full py-3 rounded-xl font-extrabold text-xs shadow-lg flex items-center justify-center gap-2 transition-all mt-3 cursor-pointer uppercase tracking-wider ${
-                  role === 'shipper' || role === 'user'
+                  role === 'customer'
                     ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
                     : role === 'customs-officer'
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
-                    : role === 'business'
-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
                     : role === 'freight-agent'
                     ? 'bg-teal-600 hover:bg-teal-500 text-white shadow-teal-600/30'
                     : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30'
@@ -533,7 +435,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
               >
                 <span>
                   {isRegistering
-                    ? 'REGISTER ENTERPRISE ACCOUNT'
+                    ? 'REGISTER CUSTOMER ACCOUNT'
                     : `SIGN IN TO ${roleName.toUpperCase()}`}
                 </span>
                 <ArrowRight className="w-4 h-4" />
@@ -554,7 +456,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onLoginSuccess }) => {
             >
               {isRegistering
                 ? 'Already have an account? Sign in here'
-                : 'Need a custom User account? Click here to register'}
+                : 'Need a customer account? Click here to register'}
             </button>
           </div>
         </div>

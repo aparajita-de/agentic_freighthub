@@ -4,7 +4,7 @@ export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type AssessmentStatus = 'COMPLETED' | 'IN_PROGRESS' | 'DEGRADED' | 'FAILED';
 export type ComplianceStatus = 'PASS' | 'FAIL' | 'NEEDS_DOCUMENTS' | 'NEEDS_REVIEW' | 'APPROVED' | 'REJECTED' | 'CONDITIONAL';
 export type SignOffAction = 'APPROVE' | 'REJECT' | 'CONDITIONAL' | 'REQUEST_DOCUMENTS';
-export type ChecklistItemStatus = 'PENDING' | 'VERIFIED' | 'MISSING' | 'REJECTED' | 'WAIVED';
+export type ChecklistItemStatus = 'PENDING' | 'VERIFIED' | 'MISSING' | 'REJECTED' | 'WAIVED' | 'DISCREPANCY';
 export type DocumentVerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 export type QuoteDecision = 'APPROVED' | 'NEEDS_REVIEW' | 'BLOCKED';
 export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
@@ -223,9 +223,14 @@ export interface CustomsComplianceCheck {
   origin_port: string;
   destination_port: string;
   hs_code: string;
+  hs_code_declared?: string; // Manually edited/declared HS code by officer
+  hs_code_matched?: string; // System-matched HS code
   commodity: string;
+  commodity_description?: string; // Manually edited commodity description
   incoterm: string;
   declared_value_inr: number;
+  basic_customs_duty_pct?: number;
+  igst_pct?: number;
   readiness_score: number; // 0 - 100
   risk_level: RiskLevel;
   status: ComplianceStatus;

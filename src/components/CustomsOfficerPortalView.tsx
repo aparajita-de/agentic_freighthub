@@ -64,19 +64,36 @@ import {
   validateCustomsCompliance,
   searchRegulationsRAG,
   signOffCustomsCheck,
-  uploadShipmentDocument
+  uploadShipmentDocument,
+  getAllComplianceChecks
 } from '../backend/customs/customsService';
 import { assessShipmentCompositeRisk } from '../backend/risk/riskEngine';
 import { predictMLPrice, compareRuleVsMLPricing } from '../backend/pricing/mlPricingService';
 import { TrackingView } from './TrackingView';
 import { PORTS_AND_HUBS } from '../data/freightData';
 import { formatCurrency } from '../utils/calculator';
+import { addNotification } from '../services/notificationService';
+import { TradeDocument, SavedQuotation } from '../types';
+import { DocumentViewerModal } from './DocumentViewerModal';
+
+interface CustomsOfficerDecision {
+  caseId: string;
+  shipmentId: string;
+  quoteId?: string;
+  action: 'APPROVE' | 'REQUEST_DOCUMENTS' | 'CONDITIONAL' | 'REJECT';
+  status: string;
+  officerEmail: string;
+  officerName: string;
+  notes: string;
+  readinessScore: number;
+}
 
 interface CustomsOfficerPortalViewProps {
   officerName?: string;
   officerEmail?: string;
   onLogout?: () => void;
   initialTab?: CustomsOfficerTab;
+  onCustomsDecision?: (decision: CustomsOfficerDecision) => void;
 }
 
 interface AuditLogEntry {
@@ -96,15 +113,26 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
   officerEmail = 'customer.officer@freighthub.in',
   onLogout,
   initialTab = 'overview',
+  onCustomsDecision,
 }) => {
   // Navigation State
   const [activeTab, setActiveTab] = useState<CustomsOfficerTab>(initialTab);
 
   // Case Management State
-  const [complianceCases, setComplianceCases] = useState<CustomsComplianceCheck[]>(SEEDED_CUSTOMS_CHECKS);
-  const [selectedCase, setSelectedCase] = useState<CustomsComplianceCheck>(
-    SEEDED_CUSTOMS_CHECKS.find((c) => c.status === 'NEEDS_REVIEW') || SEEDED_CUSTOMS_CHECKS[0]
-  );
+  // Live store includes seeded demo checks PLUS real customer-generated compliance cases (M3 wiring)
+  const [complianceCases, setComplianceCases] = useState<CustomsComplianceCheck[]>(() => {
+    const live = getAllComplianceChecks();
+    const merged = [...live];
+    SEEDED_CUSTOMS_CHECKS.forEach((seed) => {
+      if (!merged.some((c) => c.id === seed.id)) merged.push(seed);
+    });
+    return merged;
+  });
+  const [selectedCase, setSelectedCase] = useState<CustomsComplianceCheck>(() => {
+    const live = getAllComplianceChecks();
+    const pool = live.length ? live : SEEDED_CUSTOMS_CHECKS;
+    return pool.find((c) => c.status === 'NEEDS_REVIEW') || pool[0];
+  });
   const [caseFilterStatus, setCaseFilterStatus] = useState<string>('ALL');
   const [officerNotes, setOfficerNotes] = useState<string>('');
   const [officerActionToast, setOfficerActionToast] = useState<string | null>(null);
@@ -301,6 +329,38 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
         customsSignoffCompleted: action === 'APPROVE',
       });
       setRiskAssessment(updatedRisk);
+
+      // Propagate decision to the shared quote store (Customer / Freight Agent / Admin visibility)
+      onCustomsDecision?.({
+        caseId: selectedCase.id,
+        shipmentId: selectedCase.shipment_id || 'UNKNOWN',
+        quoteId: selectedCase.quote_id,
+        action,
+        status: updated.status,
+        officerEmail,
+        officerName,
+        notes: officerNotes || `Officer action ${action} confirmed.`,
+        readinessScore: updated.readiness_score,
+      });
+
+      // Dispatch notifications to customer
+      if (action === 'APPROVE') {
+        addNotification({
+          targetRole: 'customer',
+          quoteId: selectedCase.quote_id,
+          title: 'Customs Officer Clearance Approved',
+          message: `Customs Officer ${officerName} has approved your consignment documents (Case: ${selectedCase.id}). Please review and provide final booking confirmation.`,
+          type: 'action_required',
+        });
+      } else if (action === 'REQUEST_DOCUMENTS') {
+        addNotification({
+          targetRole: 'customer',
+          quoteId: selectedCase.quote_id,
+          title: 'Customs Officer Requested Additional Documents',
+          message: `Customs Officer ${officerName} requested additional documentation: "${officerNotes || 'Supplementary compliance certificates required'}". Please upload to proceed with clearance.`,
+          type: 'action_required',
+        });
+      }
     }
   };
 
@@ -547,7 +607,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                           {c.commodity} <span className="font-mono text-slate-500 font-normal">({c.hs_code})</span>
                         </div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-3">
-                          <span>Route: <strong className="text-slate-700">{c.origin_country} ➔ {c.dest_country}</strong></span>
+                          <span>Route: <strong className="text-slate-700">{c.origin_country} ➔ {c.destination_country}</strong></span>
                           <span>Incoterm: <strong className="text-slate-700">{c.incoterm}</strong></span>
                           <span>Readiness: <strong className="text-blue-600">{c.readiness_score}%</strong></span>
                         </div>
@@ -713,7 +773,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                       <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
                         <span className="text-[10px] text-slate-400 font-bold block">Trade Lane</span>
-                        <span className="font-black text-slate-800">{selectedCase.origin_country} ➔ {selectedCase.dest_country}</span>
+                        <span className="font-black text-slate-800">{selectedCase.origin_country} ➔ {selectedCase.destination_country}</span>
                       </div>
                       <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
                         <span className="text-[10px] text-slate-400 font-bold block">Incoterm</span>
@@ -749,7 +809,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                           >
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-900">{item.document_name}</span>
+                                <span className="text-xs font-bold text-slate-900">{item.item_name}</span>
                                 <span
                                   className={`px-2 py-0.2 rounded text-[9px] font-black uppercase ${
                                     item.status === 'VERIFIED'
@@ -768,7 +828,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
 
                             {item.status !== 'VERIFIED' && (
                               <button
-                                onClick={() => handleSimulateDocUpload(item.id, `${item.document_type.toLowerCase()}_verified.pdf`)}
+                                onClick={() => handleSimulateDocUpload(item.id, `${item.item_name.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40)}_verified.pdf`)}
                                 className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 transition-colors shrink-0 cursor-pointer self-start sm:self-center"
                               >
                                 Upload & Verify
@@ -905,9 +965,9 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-mono text-[10px] font-black">
-                            {chunk.document_id}
+                            {chunk.documentId || chunk.regulation_document_id}
                           </span>
-                          <span className="text-xs font-black text-slate-900">{chunk.chapter_reference}</span>
+                          <span className="text-xs font-black text-slate-900">{chunk.section_name}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                           <span>Relevance:</span>
@@ -917,7 +977,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-700 leading-relaxed">{chunk.chunk_text}</p>
+                      <p className="text-xs text-slate-700 leading-relaxed">{chunk.content}</p>
 
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         {(chunk.keywords || []).map((kw, i) => (
@@ -1117,7 +1177,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                     Shipment Risk Index & Sensitivity Engine
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Mathematical aggregation of Weather (25%), Customs (25%), Route Passages (20%), Port Congestion (15%), and Cargo Specifications (15%).
+                    Mathematical aggregation of Weather (30%), Customs (25%), Route Passages (20%), Port Congestion (15%), and Cargo Specifications (10%).
                   </p>
                 </div>
 
@@ -1178,7 +1238,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-800">1. Marine Weather & Storm Factor (25%)</span>
+                      <span className="text-slate-800">1. Marine Weather & Storm Factor (30%)</span>
                       <span className="font-mono font-black text-blue-600">{simWeatherScore} pts</span>
                     </div>
                     <input
@@ -1238,7 +1298,7 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
 
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 md:col-span-2">
                     <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-800">5. Cargo Sensitivity (Hazmat/Reefer/High-Value) (15%)</span>
+                      <span className="text-slate-800">5. Cargo Sensitivity (Hazmat/Reefer/High-Value) (10%)</span>
                       <span className="font-mono font-black text-blue-600">{simCargoScore} pts</span>
                     </div>
                     <input
@@ -1328,25 +1388,30 @@ export const CustomsOfficerPortalView: React.FC<CustomsOfficerPortalViewProps> =
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-2">
                   <span className="text-[10px] text-cyan-400 font-bold uppercase">Wave Swell Height</span>
-                  <div className="text-3xl font-black text-white">{weatherData.wave_height_meters} m</div>
+                  <div className="text-3xl font-black text-white">{Math.max(0, ...(weatherData.sampled_observations || []).map(o => o.wave_height))} m</div>
                   <p className="text-xs text-slate-400">Nominal navigational swell</p>
                 </div>
 
                 <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-2">
                   <span className="text-[10px] text-cyan-400 font-bold uppercase">Beaufort Wind Vector</span>
-                  <div className="text-3xl font-black text-white">{weatherData.wind_speed_knots} kts</div>
+                  <div className="text-3xl font-black text-white">{Math.max(0, ...(weatherData.sampled_observations || []).map(o => o.wind_speed))} kts</div>
                   <p className="text-xs text-slate-400">Beaufort Force 4 (Moderate)</p>
                 </div>
 
                 <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-2">
                   <span className="text-[10px] text-cyan-400 font-bold uppercase">Storm Delay Buffer</span>
-                  <div className="text-3xl font-black text-cyan-400">+{weatherData.buffer_hours} hrs</div>
-                  <p className="text-xs text-slate-400">Delay probability: {weatherData.delay_probability_pct}%</p>
+                  <div className="text-3xl font-black text-cyan-400">+{weatherData.expected_delay_hours} hrs</div>
+                  <p className="text-xs text-slate-400">Delay probability: {(weatherData.delay_probability * 100).toFixed(0)}%</p>
                 </div>
               </div>
 
               <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-2xl text-xs text-cyan-900 font-medium">
-                <strong>Meteorological Advisory:</strong> {weatherData.advisory_text}
+                <strong>Meteorological Advisory:</strong>{' '}
+                {(weatherData.active_alerts || []).length > 0
+                  ? weatherData.active_alerts[0].message
+                  : (weatherData.sampled_observations || []).some((o) => o.storm_detected)
+                  ? 'Storm activity detected along corridor. Expect potential transit delays and berth congestion.'
+                  : 'Sea state nominal. No adverse marine weather along the assessed corridor.'}
               </div>
             </div>
           )}

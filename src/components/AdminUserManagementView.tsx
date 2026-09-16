@@ -374,10 +374,7 @@ export const AdminUserManagementView: React.FC = () => {
 
       const matchesRole =
         roleFilter === 'all' ||
-        u.role === roleFilter ||
-        (roleFilter === 'shipper' && u.role === 'user') ||
-        (roleFilter === 'business' && u.role === 'broker') ||
-        (roleFilter === 'customer-officer' && u.role === 'customs-officer');
+        u.role === roleFilter;
 
       const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
 
@@ -386,9 +383,8 @@ export const AdminUserManagementView: React.FC = () => {
   }, [users, searchTerm, roleFilter, statusFilter]);
 
   const totalCount = (users || []).length;
-  const shipperCount = (users || []).filter((u) => u && (u.role === 'shipper' || u.role === 'user')).length;
-  const officerCount = (users || []).filter((u) => u && (u.role === 'customer-officer' || u.role === 'customs-officer')).length;
-  const businessCount = (users || []).filter((u) => u && (u.role === 'business' || u.role === 'broker')).length;
+  const customerCount = (users || []).filter((u) => u && u.role === 'customer').length;
+  const officerCount = (users || []).filter((u) => u && u.role === 'customs-officer').length;
   const agentCount = (users || []).filter((u) => u && u.role === 'freight-agent').length;
   const adminCount = (users || []).filter((u) => u && u.role === 'admin').length;
   const activeCount = (users || []).filter((u) => u && u.status === 'active').length;
@@ -481,7 +477,7 @@ export const AdminUserManagementView: React.FC = () => {
         </div>
 
         {/* 6 KPI Metric Badges for the 5 Portals */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
               <span>Total Accounts</span>
@@ -490,31 +486,23 @@ export const AdminUserManagementView: React.FC = () => {
               </span>
             </div>
             <div className="text-xl font-black text-slate-900 mt-1">{totalCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Enrolled 5-Tier Accounts</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">Enrolled 4-Tier Accounts</div>
           </div>
 
           <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl">
             <div className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1">
-              <UserCheck className="w-3 h-3" /> User Portal
+              <UserCheck className="w-3 h-3" /> Customer Portal
             </div>
-            <div className="text-xl font-black text-blue-900 mt-1">{shipperCount}</div>
+            <div className="text-xl font-black text-blue-900 mt-1">{customerCount}</div>
             <div className="text-[10px] text-blue-600 mt-0.5">Tariff & Tracking Portal</div>
           </div>
 
           <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl">
             <div className="text-[10px] font-bold text-amber-700 uppercase flex items-center gap-1">
-              <UserCheck className="w-3 h-3" /> Customer Officer
+              <UserCheck className="w-3 h-3" /> Customs Officer
             </div>
             <div className="text-xl font-black text-amber-900 mt-1">{officerCount}</div>
             <div className="text-[10px] text-amber-600 mt-0.5">Compliance & Audit Desk</div>
-          </div>
-
-          <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl">
-            <div className="text-[10px] font-bold text-indigo-700 uppercase flex items-center gap-1">
-              <Briefcase className="w-3 h-3" /> Business Desk
-            </div>
-            <div className="text-xl font-black text-indigo-900 mt-1">{businessCount}</div>
-            <div className="text-[10px] text-indigo-600 mt-0.5">Commercial Margins & Yield</div>
           </div>
 
           <div className="p-3.5 bg-teal-50/70 border border-teal-200 rounded-2xl">
@@ -644,31 +632,22 @@ export const AdminUserManagementView: React.FC = () => {
                 All ({totalCount})
               </button>
               <button
-                onClick={() => setRoleFilter('shipper')}
+                onClick={() => setRoleFilter('customer')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                  roleFilter === 'shipper' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-900'
+                  roleFilter === 'customer' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 <UserCheck className="w-3 h-3" />
-                <span>User ({shipperCount})</span>
+                <span>Customer ({customerCount})</span>
               </button>
               <button
-                onClick={() => setRoleFilter('customer-officer')}
+                onClick={() => setRoleFilter('customs-officer')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                  roleFilter === 'customer-officer' ? 'bg-amber-600 text-white shadow' : 'text-slate-500 hover:text-slate-900'
+                  roleFilter === 'customs-officer' ? 'bg-amber-600 text-white shadow' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 <UserCheck className="w-3 h-3" />
                 <span>Officer ({officerCount})</span>
-              </button>
-              <button
-                onClick={() => setRoleFilter('business')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                  roleFilter === 'business' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <Briefcase className="w-3 h-3" />
-                <span>Business ({businessCount})</span>
               </button>
               <button
                 onClick={() => setRoleFilter('freight-agent')}
@@ -751,10 +730,8 @@ export const AdminUserManagementView: React.FC = () => {
                             className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs text-white shadow-sm shrink-0 ${
                               user.role === 'admin'
                                 ? 'bg-purple-600'
-                                : user.role === 'customer-officer' || user.role === 'customs-officer'
+                                : user.role === 'customs-officer'
                                 ? 'bg-amber-600'
-                                : user.role === 'business' || user.role === 'broker'
-                                ? 'bg-indigo-600'
                                 : user.role === 'freight-agent'
                                 ? 'bg-teal-600'
                                 : 'bg-blue-600'
@@ -797,10 +774,8 @@ export const AdminUserManagementView: React.FC = () => {
                             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                               user.role === 'admin'
                                 ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                                : user.role === 'customer-officer' || user.role === 'customs-officer'
+                                : user.role === 'customs-officer'
                                 ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                                : user.role === 'business' || user.role === 'broker'
-                                ? 'bg-indigo-100 text-indigo-900 border border-indigo-200'
                                 : user.role === 'freight-agent'
                                 ? 'bg-teal-100 text-teal-900 border border-teal-200'
                                 : 'bg-blue-100 text-blue-900 border border-blue-200'
@@ -808,25 +783,21 @@ export const AdminUserManagementView: React.FC = () => {
                           >
                             {user.role === 'admin' ? (
                               <ShieldAlert className="w-3 h-3" />
-                            ) : user.role === 'customer-officer' || user.role === 'customs-officer' ? (
+                            ) : user.role === 'customs-officer' ? (
                               <UserCheck className="w-3 h-3 text-amber-700" />
-                            ) : user.role === 'business' || user.role === 'broker' ? (
-                              <Briefcase className="w-3 h-3" />
                             ) : user.role === 'freight-agent' ? (
                               <Ship className="w-3 h-3" />
                             ) : (
                               <UserCheck className="w-3 h-3" />
                             )}
                             <span>
-                              {user.role === 'customer-officer' || user.role === 'customs-officer'
-                                ? 'Customer Officer'
-                                : user.role === 'business' || user.role === 'broker'
-                                ? 'Business'
+                              {user.role === 'customs-officer'
+                                ? 'Customs Officer'
                                 : user.role === 'freight-agent'
                                 ? 'Freight Agent'
                                 : user.role === 'admin'
                                 ? 'Admin'
-                                : 'User'}
+                                : 'Customer'}
                             </span>
                           </span>
                           <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
@@ -1001,56 +972,39 @@ export const AdminUserManagementView: React.FC = () => {
                 <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1.5">
                   Select Target Portal Role
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
-                      setGeneratorRole('user');
-                      const p = userService.generateRandomProfile('user');
+                      setGeneratorRole('customer');
+                      const p = userService.generateRandomProfile('customer');
                       setGeneratedProfile(p);
                     }}
                     className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
-                      generatorRole === 'shipper' || generatorRole === 'user'
+                      generatorRole === 'customer'
                         ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    <span>User</span>
+                    <span>Customer</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      setGeneratorRole('customer-officer');
-                      const p = userService.generateRandomProfile('customer-officer');
+                      setGeneratorRole('customs-officer');
+                      const p = userService.generateRandomProfile('customs-officer');
                       setGeneratedProfile(p);
                     }}
                     className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
-                      generatorRole === 'customer-officer' || generatorRole === 'customs-officer'
+                      generatorRole === 'customs-officer'
                         ? 'bg-amber-600 text-white border-amber-700 shadow-sm'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     <UserCheck className="w-3.5 h-3.5" />
                     <span>Officer</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGeneratorRole('business');
-                      const p = userService.generateRandomProfile('business');
-                      setGeneratedProfile(p);
-                    }}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
-                      generatorRole === 'business' || generatorRole === 'broker'
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Briefcase className="w-3.5 h-3.5" />
-                    <span>Business</span>
                   </button>
 
                   <button

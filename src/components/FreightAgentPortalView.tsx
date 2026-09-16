@@ -19,9 +19,11 @@ import {
 import { FreightAgentSidebarNav, FreightAgentTab } from './FreightAgentSidebarNav';
 import { Milestone1RouteOperationsView } from './Milestone1RouteOperationsView';
 import { TrackingView } from './TrackingView';
+import { BrokerQuoteReviewModal } from './BrokerQuoteReviewModal';
+import { FreightAgentCompanyVerificationDesk } from './FreightAgentCompanyVerificationDesk';
 import { PORTS_AND_HUBS } from '../data/freightData';
 import { formatCurrency } from '../utils/calculator';
-import { CarrierSpotRate, UserRole } from '../types';
+import { CarrierSpotRate, UserRole, SavedQuotation } from '../types';
 
 interface FreightAgentPortalViewProps {
   userName?: string;
@@ -29,6 +31,8 @@ interface FreightAgentPortalViewProps {
   agentSubTab?: FreightAgentTab;
   onSelectAgentTab?: (tab: FreightAgentTab) => void;
   userRole?: UserRole;
+  quotations?: SavedQuotation[];
+  onUpdateQuotation?: (quote: SavedQuotation) => void;
 }
 
 const SPOT_LINE_RATES: CarrierSpotRate[] = [
@@ -130,6 +134,8 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
   agentSubTab = 'operations-overview',
   onSelectAgentTab,
   userRole = 'freight-agent',
+  quotations = [],
+  onUpdateQuotation,
 }) => {
   const [internalTab, setInternalTab] = useState<FreightAgentTab>(agentSubTab);
   const activeTab = agentSubTab || internalTab;
@@ -140,6 +146,28 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
   };
 
   const [bookingToast, setBookingToast] = useState<string | null>(null);
+
+  // Quote Review Queue: customer-submitted quotes awaiting agent approval & dispatch
+  const pendingReviewQuotes = quotations.filter((q) => q && q.status === 'PENDING_REVIEW');
+  const finalizedQuotes = quotations.filter((q) => q && (q.status === 'BROKER_FINALIZED' || q.status === 'ISSUED' || q.status === 'APPROVED' || q.status === 'SENT'));
+  const [reviewingQuote, setReviewingQuote] = useState<SavedQuotation | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+  const [dispatchToast, setDispatchToast] = useState<string | null>(null);
+
+  const handleOpenReview = (quote: SavedQuotation) => {
+    setReviewingQuote(quote);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleDispatchFinalizedQuote = (updatedQuote: SavedQuotation) => {
+    if (onUpdateQuotation) {
+      onUpdateQuotation(updatedQuote);
+    }
+    setIsReviewModalOpen(false);
+    setReviewingQuote(null);
+    setDispatchToast(`Quote ${updatedQuote.id} approved & dispatched to customer ${updatedQuote.shipperName || ''} — now ready for acceptance.`.replace('  ', ' '));
+    setTimeout(() => setDispatchToast(null), 5000);
+  };
 
   const handleBookSlot = (rate: CarrierSpotRate) => {
     setBookingToast(`Container slot confirmed with ${rate.carrierName} on ${rate.originPort} -> ${rate.destinationPort}`);
@@ -155,6 +183,25 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
           <span>{bookingToast}</span>
         </div>
       )}
+
+      {/* Dispatch confirmation toast */}
+      {dispatchToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-emerald-500 flex items-center gap-3 text-xs font-bold animate-in slide-in-from-bottom-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <span>{dispatchToast}</span>
+        </div>
+      )}
+
+      {/* Broker/Brokerage Quote Review & Dispatch Modal (opened from Quote Review queue) */}
+      <BrokerQuoteReviewModal
+        quote={reviewingQuote}
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setReviewingQuote(null);
+        }}
+        onSaveQuote={handleDispatchFinalizedQuote}
+      />
 
       {/* Top Banner */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
@@ -200,6 +247,7 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
           <FreightAgentSidebarNav
             activeTab={activeTab}
             onSelectTab={handleTabChange}
+            pendingQuoteCount={pendingReviewQuotes.length}
           />
         </div>
 
@@ -305,6 +353,14 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
             </div>
           )}
 
+          {/* TAB 1b: COMPANY VERIFICATION DESK (AI analysis & manual quote adjustment) */}
+          {activeTab === 'company-verification' && (
+            <FreightAgentCompanyVerificationDesk
+              quotations={quotations}
+              onUpdateQuotation={onUpdateQuotation || (() => {})}
+            />
+          )}
+
           {/* TAB 2: LIVE CARGO TRACKING */}
           {activeTab === 'cargo-tracking' && (
             <TrackingView userRole={userRole} />
@@ -377,6 +433,60 @@ export const FreightAgentPortalView: React.FC<FreightAgentPortalViewProps> = ({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2b: QUOTE REVIEW & DISPATCH (Customer quote requests -> agent approval -> dispatch to customer) */}
+          {activeTab === 'quote-review' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              {/* Pending Review Queue */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-5">
+                <div className="border-b border-slate-100 pb-4">
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    Quote Review Queue — Pending Approval
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Customer-submitted quote requests awaiting manual rate verification, margin adjustment, and dispatch to the customer portal.
+                  </p>
+                </div>
+
+                {pendingReviewQuotes.length === 0 ? (
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-600">No pending quote requests. All customer quotations have been reviewed.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingReviewQuotes.map((quote) => (
+                      <div key={quote.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-black text-xs text-slate-900">{quote.id}</span>
+                            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200 uppercase">
+                              Pending Agent Review
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 mt-0.5 truncate">
+                            {quote.companyName || quote.shipperName || 'Customer'} • {quote.originCode || quote.formData?.originPortCode || '—'} → {quote.destinationCode || quote.formData?.destinationPortCode || '—'} • {quote.cargoSummary || 'Cargo'} • Submitted {quote.createdAt}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">AI Calculated</div>
+                            <div className="text-sm font-black text-slate-900 font-mono">{formatCurrency(quote.tariffAmount, quote.currency || 'INR')}</div>
+                          </div>
+                          <button
+                            onClick={() => handleOpenReview(quote)}
+                            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black rounded-xl shadow transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            Review & Adjust
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

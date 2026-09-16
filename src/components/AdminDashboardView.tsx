@@ -545,6 +545,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <th className="p-3.5">Mode / Spec</th>
                   <th className="p-3.5">Grand Total</th>
                   <th className="p-3.5">Generated Date</th>
+<th className="p-3.5">Customs</th>
                   <th className="p-3.5 pr-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -572,6 +573,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       {formatCurrency(quote.breakdown.grandTotal, quote.breakdown.currency)}
                     </td>
                     <td className="p-3.5 text-slate-500 font-medium">{quote.createdAt}</td>
+                    <td className="p-3.5">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                          quote.customsStatus === 'APPROVED'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : quote.customsStatus === 'REJECTED'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : quote.customsStatus
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-50 text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        {quote.customsStatus || 'N/A'}
+                      </span>
+                    </td>
                     <td className="p-3.5 pr-4 text-right space-x-1">
                       <button
                         onClick={() => onViewQuotePDF(quote)}

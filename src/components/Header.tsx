@@ -31,31 +31,27 @@ import { AdminTab } from './AdminSidebarNav';
 
 interface HeaderProps {
   activeTab: string;
-  workspaceView?: 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations';
+  workspaceView?: 'dashboard' | 'calculation' | 'routes' | 'tracking' | 'quotations' | 'test-scenarios';
   adminSubTab?: AdminTab;
-  brokerSubTab?: 'overview' | 'margin-calculator' | 'client-quotes' | 'carrier-rates' | 'commissions' | 'm1-routes' | 'm2-quotes' | 'tracking';
   setActiveTab: (tab: string) => void;
   onSelectAdminTab?: (tab: AdminTab) => void;
-  onSelectBrokerTab?: (tab: 'overview' | 'margin-calculator' | 'client-quotes' | 'carrier-rates' | 'commissions' | 'm1-routes' | 'm2-quotes' | 'tracking') => void;
   isAuthenticated: boolean;
   userEmail: string;
   userRole?: UserRole;
   onOpenAuthModal: () => void;
   onLogout: () => void;
-  onNavigateToWorkspace: (view?: 'dashboard' | 'calculation' | 'tracking' | 'routes' | 'quotations') => void;
+  onNavigateToWorkspace: (view?: 'dashboard' | 'calculation' | 'tracking' | 'routes' | 'quotations' | 'test-scenarios') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   workspaceView = 'calculation',
   adminSubTab = 'home',
-  brokerSubTab = 'margin-calculator',
   setActiveTab,
   onSelectAdminTab,
-  onSelectBrokerTab,
   isAuthenticated,
   userEmail,
-  userRole = 'user',
+  userRole = 'customer',
   onOpenAuthModal,
   onLogout,
   onNavigateToWorkspace,
@@ -73,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const isUserPortal = isAuthenticated && (userRole === 'user' || userRole === 'shipper');
+  const isUserPortal = isAuthenticated && userRole === 'customer';
 
   const handleNavClick = (id: string) => {
     setIsHamburgerOpen(false);
@@ -108,17 +104,13 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const displayName =
-    userRole === 'customer-officer' || userRole === 'customs-officer'
-      ? 'Customer Officer'
+    userRole === 'customs-officer'
+      ? 'Customs Officer'
       : userRole === 'admin'
       ? 'System Admin'
-      : userRole === 'business'
-      ? 'Business Desk'
       : userRole === 'freight-agent'
       ? 'Freight Agent'
-      : userRole === 'broker'
-      ? 'Freight Broker'
-      : userEmail.split('@')[0] || 'User';
+      : userEmail.split('@')[0] || 'Customer';
 
   // Live Date State
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -139,21 +131,17 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getLogoBadge = () => {
     if (!isAuthenticated) return 'SMART LOGISTICS ENGINE';
-    if (userRole === 'customer-officer' || userRole === 'customs-officer') return 'CUSTOMER COMPLIANCE & OPERATIONS DESK';
+    if (userRole === 'customs-officer') return 'CUSTOMS OFFICER DESK';
     if (userRole === 'admin') return 'ADMIN CONSOLE';
-    if (userRole === 'business') return 'BUSINESS COMMERCIAL PORTAL';
     if (userRole === 'freight-agent') return 'FREIGHT AGENT DESK';
-    if (userRole === 'broker') return 'BROKERAGE PORTAL';
-    return 'USER FREIGHT ENGINE';
+    return 'CUSTOMER FREIGHT ENGINE';
   };
 
   const getLogoColor = () => {
     if (!isAuthenticated) return 'bg-blue-600 shadow-blue-500/30';
-    if (userRole === 'customer-officer' || userRole === 'customs-officer') return 'bg-amber-500 shadow-amber-500/30 text-slate-950';
+    if (userRole === 'customs-officer') return 'bg-amber-500 shadow-amber-500/30 text-slate-950';
     if (userRole === 'admin') return 'bg-purple-600 shadow-purple-500/30';
-    if (userRole === 'business') return 'bg-indigo-600 shadow-indigo-500/30 text-white';
     if (userRole === 'freight-agent') return 'bg-teal-600 shadow-teal-500/30 text-white';
-    if (userRole === 'broker') return 'bg-amber-600 shadow-amber-500/30 text-slate-950';
     return 'bg-blue-600 shadow-blue-500/30';
   };
 
@@ -173,14 +161,12 @@ export const Header: React.FC<HeaderProps> = ({
             }}
           >
             <div className={`p-2 rounded-xl flex items-center justify-center shadow-lg ${getLogoColor()}`}>
-              {(userRole === 'customer-officer' || userRole === 'customs-officer') && isAuthenticated ? (
+              {userRole === 'customs-officer' && isAuthenticated ? (
                 <UserCheck className="w-5 h-5 text-slate-950" />
-              ) : userRole === 'business' && isAuthenticated ? (
-                <TrendingUp className="w-5 h-5 text-white" />
               ) : userRole === 'freight-agent' && isAuthenticated ? (
                 <Anchor className="w-5 h-5 text-white" />
-              ) : userRole === 'broker' && isAuthenticated ? (
-                <Briefcase className="w-5 h-5 text-slate-950 fill-current" />
+              ) : userRole === 'admin' && isAuthenticated ? (
+                <ShieldCheck className="w-5 h-5 text-white" />
               ) : (
                 <Rocket className="w-5 h-5 text-white transform -rotate-45" />
               )}
@@ -201,15 +187,13 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs font-semibold text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-300 font-medium">
-              {userRole === 'customer-officer' || userRole === 'customs-officer'
-                ? 'Customer Officer Compliance Desk'
+              {userRole === 'customs-officer'
+                ? 'Customs Officer Compliance Desk'
                 : userRole === 'admin'
                 ? 'Administrator Console'
-                : userRole === 'business'
-                ? 'Business Commercial Desk'
                 : userRole === 'freight-agent'
                 ? 'Freight Agent Dispatch Operations'
-                : 'Brokerage Operations'}
+                : 'Customer Portal'}
             </span>
           </div>
         )}
@@ -267,48 +251,36 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                    userRole === 'customer-officer' || userRole === 'customs-officer'
+                    userRole === 'customs-officer'
                       ? 'bg-amber-500 text-slate-950 font-black'
                       : userRole === 'admin'
                       ? 'bg-purple-600'
-                      : userRole === 'business'
-                      ? 'bg-indigo-600'
                       : userRole === 'freight-agent'
                       ? 'bg-teal-600'
-                      : userRole === 'broker'
-                      ? 'bg-amber-500 text-slate-950'
                       : 'bg-blue-600'
                   }`}
                 >
-                  {userRole === 'customer-officer' || userRole === 'customs-officer'
+                  {userRole === 'customs-officer'
                     ? 'C'
                     : userRole === 'admin'
                     ? 'A'
-                    : userRole === 'business'
-                    ? 'B'
                     : userRole === 'freight-agent'
                     ? 'F'
-                    : userRole === 'broker'
-                    ? 'B'
                     : displayName.charAt(0).toUpperCase()}
                 </div>
                 <span className="capitalize font-bold hidden sm:inline">{displayName}</span>
                 <span
                   className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
-                    userRole === 'customer-officer' || userRole === 'customs-officer'
+                    userRole === 'customs-officer'
                       ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
                       : userRole === 'admin'
                       ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40'
-                      : userRole === 'business'
-                      ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/40'
                       : userRole === 'freight-agent'
                       ? 'bg-teal-500/30 text-teal-300 border border-teal-500/40'
-                      : userRole === 'broker'
-                      ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
                       : 'bg-blue-500/30 text-blue-300 border border-blue-500/40'
                   }`}
                 >
-                  {userRole === 'customer-officer' || userRole === 'customs-officer' ? 'CUSTOMER OFFICER' : userRole === 'shipper' ? 'USER' : userRole.toUpperCase()}
+                  {userRole === 'customs-officer' ? 'CUSTOMS OFFICER' : userRole === 'admin' ? 'ADMIN' : userRole === 'freight-agent' ? 'FREIGHT AGENT' : 'CUSTOMER'}
                 </span>
               </button>
 
@@ -378,7 +350,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="text-xs text-slate-400 truncate max-w-[160px]">{userEmail}</div>
                     <div className="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 uppercase tracking-wider mt-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{userRole === 'shipper' || userRole === 'user' ? 'USER PORTAL ACTIVE' : `${userRole.toUpperCase()} DESK`}</span>
+                      <span>{userRole === 'customer' ? 'CUSTOMER PORTAL ACTIVE' : `${userRole.toUpperCase()} DESK`}</span>
                     </div>
                   </div>
                 </div>

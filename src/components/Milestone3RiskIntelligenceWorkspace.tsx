@@ -89,13 +89,13 @@ interface Milestone3Props {
 
 export const Milestone3RiskIntelligenceWorkspace: React.FC<Milestone3Props> = ({
   initialTab = 'risk-engine',
-  userRole = 'user',
-  userEmail = 'customer.officer@freighthub.in',
+  userRole = 'customer',
+  userEmail = 'customs.officer@freighthub.in',
   onOpenQuoteBuilder,
 }) => {
   const [activeTab, setActiveTab] = useState<Milestone3Tab>(initialTab);
 
-  const isOfficerRole = userRole === 'customer-officer' || userRole === 'customs-officer' || userRole === 'admin';
+  const isOfficerRole = userRole === 'customs-officer' || userRole === 'admin' || userRole === 'freight-agent';
 
   // Fallback active tab if regular user is on an officer-only tab
   useEffect(() => {

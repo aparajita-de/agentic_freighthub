@@ -352,3 +352,8 @@ export function useMasterData() {
     resetMasterData: reset,
   };
 }
+
+export function getMasterDataSnapshot(): MasterCollectionsState {
+  return currentCache;
+}
+
